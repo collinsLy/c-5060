@@ -24,6 +24,11 @@ const TradingViewChart = ({
       container.current.innerHTML = '';
     }
 
+    const containerId = `tradingview_${symbol.replace(/[/:]/g, "")}`;
+    if (container.current) {
+      container.current.id = containerId;
+    }
+
     // Load TradingView widget script
     const script = document.createElement("script");
     script.src = "https://s3.tradingview.com/tv.js";
@@ -41,7 +46,7 @@ const TradingViewChart = ({
           toolbar_bg: "#f1f3f6",
           enable_publishing: false,
           allow_symbol_change: true,
-          container_id: container.current.id,
+          container_id: containerId,
           hide_top_toolbar: false,
           hide_legend: false,
           save_image: false,
@@ -65,7 +70,6 @@ const TradingViewChart = ({
   return (
     <div 
       ref={container}
-      id={`tradingview_${symbol.replace("/", "")}`}
       className="w-full h-full"
     />
   );

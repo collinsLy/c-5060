@@ -60,7 +60,7 @@ const ActionGrid = () => {
       <DashboardActionButton
         icon={<MoreHorizontal className="w-6 h-6" />}
         label="More"
-        onClick={() => {}}
+        onClick={() => navigate("/more")}
       />
 
       <DepositModal

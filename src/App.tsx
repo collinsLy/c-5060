@@ -11,6 +11,10 @@ import Trade from "./pages/Trade";
 import Profile from "./pages/Profile";
 import Transactions from "./pages/Transactions";
 import { UserProvider } from "./context/UserContext";
+import Chart from "./pages/Chart";
+import Affiliate from "./pages/Affiliate";
+import Demo from "./pages/Demo";
+import More from "./pages/More";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +32,10 @@ const App = () => (
             <Route path="/trade" element={<Trade />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/chart" element={<Chart />} />
+            <Route path="/affiliate" element={<Affiliate />} />
+            <Route path="/demo" element={<Demo />} />
+            <Route path="/more" element={<More />} />
           </Routes>
         </BrowserRouter>
       </UserProvider>

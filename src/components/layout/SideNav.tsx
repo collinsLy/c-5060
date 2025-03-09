@@ -10,6 +10,10 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  Medal,
+  Users,
+  MoreHorizontal,
+  Banknote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -27,8 +31,12 @@ const SideNav = () => {
     { path: "/dashboard", icon: <Home className="h-5 w-5" />, label: "Dashboard" },
     { path: "/trade", icon: <BarChart2 className="h-5 w-5" />, label: "Trade" },
     { path: "/bots", icon: <Bot className="h-5 w-5" />, label: "Bots" },
+    { path: "/chart", icon: <Medal className="h-5 w-5" />, label: "Chart" },
+    { path: "/affiliate", icon: <Users className="h-5 w-5" />, label: "Affiliate" },
+    { path: "/demo", icon: <Banknote className="h-5 w-5" />, label: "Demo" },
     { path: "/transactions", icon: <History className="h-5 w-5" />, label: "Transactions" },
     { path: "/profile", icon: <User className="h-5 w-5" />, label: "Profile" },
+    { path: "/more", icon: <MoreHorizontal className="h-5 w-5" />, label: "More" },
     { path: "/settings", icon: <Settings className="h-5 w-5" />, label: "Settings" },
   ];
 

@@ -24,9 +24,10 @@ const TradingViewChart = ({
       container.current.innerHTML = '';
     }
 
-    const containerId = `tradingview_${symbol.replace(/[/:]/g, "")}`;
+    // Create a unique ID based on the symbol and interval to prevent conflicts
+    const uniqueId = `tradingview_${symbol.replace(/[/:]/g, "")}_${interval}_${Date.now()}`;
     if (container.current) {
-      container.current.id = containerId;
+      container.current.id = uniqueId;
     }
 
     // Load TradingView widget script
@@ -46,13 +47,15 @@ const TradingViewChart = ({
           toolbar_bg: "#f1f3f6",
           enable_publishing: false,
           allow_symbol_change: true,
-          container_id: containerId,
+          container_id: uniqueId,
           hide_top_toolbar: false,
           hide_legend: false,
           save_image: false,
           height: autosize ? "100%" : height,
           withdateranges: true,
-          studies: ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"]
+          studies: ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
+          fullscreen: true,
+          show_popup_button: true
         });
       }
     };
@@ -71,6 +74,7 @@ const TradingViewChart = ({
     <div 
       ref={container}
       className="w-full h-full"
+      style={{ minHeight: "calc(100vh - 200px)" }}
     />
   );
 };

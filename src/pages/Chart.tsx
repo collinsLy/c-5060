@@ -21,8 +21,8 @@ const Chart = () => {
 
   return (
     <AuthLayout title="Advanced Charts">
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row justify-between gap-4">
+      <div className="flex flex-col h-[calc(100vh-80px)]">
+        <div className="flex flex-col md:flex-row justify-between gap-2 mb-2">
           <div className="flex flex-wrap gap-2">
             <Button 
               variant={activePair === "BTC/USD" ? "default" : "outline"} 
@@ -92,13 +92,13 @@ const Chart = () => {
           </div>
         </div>
         
-        <Card className="p-1 h-[calc(100vh-180px)] min-h-[600px]">
+        <Card className="p-1 flex-grow h-full">
           <TradingViewChart 
             symbol={pairToTradingViewSymbol[activePair]} 
             theme="dark"
             interval={timeframe}
             autosize={true}
-            height={600}
+            height={800}
           />
         </Card>
       </div>

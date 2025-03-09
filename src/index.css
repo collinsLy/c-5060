@@ -70,4 +70,10 @@
 /* TradingView Widget Customization */
 iframe {
   border-radius: 8px;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.tradingview-widget-container {
+  height: 100% !important;
 }

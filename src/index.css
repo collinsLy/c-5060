@@ -66,3 +66,8 @@
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* TradingView Widget Customization */
+iframe {
+  border-radius: 8px;
+}

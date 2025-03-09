@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -25,7 +26,7 @@ export default {
         background: "#0F1115",
         foreground: "#FFFFFF",
         primary: {
-          DEFAULT: "#141413",
+          DEFAULT: "#1E88E5", // Blue shade for primary actions
           foreground: "#FFFFFF",
         },
         secondary: {
@@ -33,7 +34,7 @@ export default {
           foreground: "#141413",
         },
         accent: {
-          DEFAULT: "#8989DE",
+          DEFAULT: "#7C3AED", // Purple shade for accents
           foreground: "#FFFFFF",
         },
         muted: {
@@ -41,8 +42,20 @@ export default {
           foreground: "#FAFAF8",
         },
         card: {
-          DEFAULT: "#FFFFFF",
-          foreground: "#141413",
+          DEFAULT: "#1A1D24", // Dark card background
+          foreground: "#FFFFFF",
+        },
+        success: {
+          DEFAULT: "#10B981", // Green for success states
+          foreground: "#FFFFFF",
+        },
+        warning: {
+          DEFAULT: "#F59E0B", // Amber for warnings
+          foreground: "#FFFFFF",
+        },
+        error: {
+          DEFAULT: "#EF4444", // Red for errors
+          foreground: "#FFFFFF",
         },
       },
       borderRadius: {

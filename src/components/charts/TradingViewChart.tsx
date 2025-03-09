@@ -13,7 +13,7 @@ const TradingViewChart = ({
   symbol,
   theme = "dark",
   autosize = true,
-  height = 400,
+  height = 600,
   interval = "15"
 }: TradingViewChartProps) => {
   const container = useRef<HTMLDivElement>(null);
@@ -52,7 +52,7 @@ const TradingViewChart = ({
           save_image: false,
           height: autosize ? "100%" : height,
           withdateranges: true,
-          studies: ["RSI@tv-basicstudies"]
+          studies: ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"]
         });
       }
     };

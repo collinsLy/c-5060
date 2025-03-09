@@ -21,7 +21,7 @@ const Chart = () => {
 
   return (
     <AuthLayout title="Advanced Charts">
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div className="flex flex-wrap gap-2">
             <Button 
@@ -92,12 +92,13 @@ const Chart = () => {
           </div>
         </div>
         
-        <Card className="p-1 h-[calc(100vh-240px)] min-h-[500px]">
+        <Card className="p-1 h-[calc(100vh-180px)] min-h-[600px]">
           <TradingViewChart 
             symbol={pairToTradingViewSymbol[activePair]} 
             theme="dark"
             interval={timeframe}
             autosize={true}
+            height={600}
           />
         </Card>
       </div>

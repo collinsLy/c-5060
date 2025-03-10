@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/context/UserContext";
 import { toast } from "@/hooks/use-toast";
+import { Phone } from "lucide-react";
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -24,6 +25,13 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
   const [amount, setAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("card");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+
+  // PesaPal config - in a production environment, these would be stored securely
+  const pesapalConfig = {
+    consumerKey: "RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX",
+    consumerSecret: "hzBxk/UrOi+FKbiy0tiEOhe4UN4=",
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,22 +45,59 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    if (paymentMethod === "mpesa" && (!phoneNumber || phoneNumber.length < 10)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid M-Pesa phone number.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     // Simulate processing
     await new Promise((resolve) => setTimeout(resolve, 1500));
+    
+    // In a real implementation, we would integrate with the PesaPal API here
+    // This would involve:
+    // 1. Creating a payment request to PesaPal
+    // 2. Handling the callback/redirect
+    // 3. Verifying the payment status
+    
+    if (paymentMethod === "mpesa") {
+      console.log("Processing M-Pesa payment with PesaPal:", {
+        amount,
+        phoneNumber,
+        ...pesapalConfig
+      });
+    }
     
     // Add transaction to history
     addTransaction({
       amount: parseFloat(amount),
       type: "DEPOSIT",
       status: "COMPLETED",
-      details: `Via ${paymentMethod === "card" ? "Credit Card" : "Crypto Wallet"}`,
+      details: `Via ${
+        paymentMethod === "card" 
+          ? "Credit Card" 
+          : paymentMethod === "crypto" 
+            ? "Crypto Wallet" 
+            : `M-Pesa (${phoneNumber})`
+      }`,
     });
     
     setIsLoading(false);
     setAmount("");
+    setPhoneNumber("");
     onClose();
+    
+    toast({
+      title: "Deposit Initiated",
+      description: paymentMethod === "mpesa" 
+        ? "Check your phone for the M-Pesa prompt."
+        : "Your deposit has been processed successfully.",
+    });
   };
 
   return (
@@ -83,7 +128,7 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
             
             <div className="grid gap-2">
               <Label htmlFor="payment-method">Payment Method</Label>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant={paymentMethod === "card" ? "default" : "outline"}
@@ -99,6 +144,15 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
                   className="flex-1"
                 >
                   Crypto Wallet
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentMethod === "mpesa" ? "default" : "outline"}
+                  onClick={() => setPaymentMethod("mpesa")}
+                  className="flex-1 flex items-center gap-2"
+                >
+                  <Phone className="h-4 w-4" />
+                  M-Pesa
                 </Button>
               </div>
             </div>
@@ -150,6 +204,24 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
                     </Button>
                   ))}
                 </div>
+              </div>
+            )}
+            
+            {paymentMethod === "mpesa" && (
+              <div className="grid gap-2">
+                <Label htmlFor="phone-number">M-Pesa Phone Number</Label>
+                <Input
+                  id="phone-number"
+                  type="tel"
+                  placeholder="e.g. 07XXXXXXXX"
+                  className="bg-background/50"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  required={paymentMethod === "mpesa"}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter the phone number registered with M-Pesa. You will receive a prompt to complete the payment.
+                </p>
               </div>
             )}
           </div>

@@ -29,7 +29,7 @@ const Trade = () => {
 
   return (
     <AuthLayout title="Trade">
-      <div className="space-y-6">
+      <div className="flex flex-col h-[calc(100vh-80px)] space-y-4">
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold">{activePair}</h2>
@@ -38,7 +38,7 @@ const Trade = () => {
           <Button onClick={() => setTradeModalOpen(true)}>Place Trade</Button>
         </div>
         
-        <Card className="bg-card">
+        <Card className="flex-grow bg-card">
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>Chart</CardTitle>
@@ -74,13 +74,11 @@ const Trade = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="h-[400px]">
-              <TradingViewChart 
-                symbol={pairToTradingViewSymbol[activePair]} 
-                theme="dark" 
-              />
-            </div>
+          <CardContent className="p-2 h-[calc(100%-80px)]">
+            <TradingViewChart 
+              symbol={pairToTradingViewSymbol[activePair]} 
+              theme="dark" 
+            />
           </CardContent>
         </Card>
         

@@ -14,7 +14,7 @@ const Demo = () => {
 
   return (
     <AuthLayout title="Demo Trading">
-      <div className="space-y-6">
+      <div className="flex flex-col h-[calc(100vh-80px)] space-y-4">
         <Card className="bg-card/50 border-primary/50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -39,17 +39,15 @@ const Demo = () => {
           <Button onClick={() => setTradeModalOpen(true)}>Place Demo Trade</Button>
         </div>
         
-        <Card className="bg-card">
+        <Card className="flex-grow bg-card">
           <CardHeader>
             <CardTitle>Demo Chart</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-[400px]">
-              <TradingViewChart 
-                symbol="BITSTAMP:BTCUSD" 
-                theme="dark" 
-              />
-            </div>
+          <CardContent className="p-2 h-[calc(100%-80px)]">
+            <TradingViewChart 
+              symbol="BITSTAMP:BTCUSD" 
+              theme="dark" 
+            />
           </CardContent>
         </Card>
         
@@ -96,7 +94,6 @@ const Demo = () => {
         defaultMarket="RISE_FALL"
         defaultDuration={2}
         defaultProfit={100}
-        isDemoMode={true}
       />
     </AuthLayout>
   );

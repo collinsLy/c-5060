@@ -54,8 +54,11 @@ const TradingViewChart = ({
           height: autosize ? "100%" : height,
           withdateranges: true,
           studies: ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
-          fullscreen: true,
-          show_popup_button: true
+          // Using it as an extended property that TradingView supports
+          studies_overrides: {
+            "volume.volume.color.0": "#ff5252",
+            "volume.volume.color.1": "#4caf50",
+          }
         });
       }
     };

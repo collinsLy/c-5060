@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -31,6 +30,9 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
   const pesapalConfig = {
     consumerKey: "RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX",
     consumerSecret: "hzBxk/UrOi+FKbiy0tiEOhe4UN4=",
+    domain: "vertex-trading.com", // Domain registered with PesaPal
+    ipnListenerUrl: "https://vertex-trading.com/api/payments/ipn", // URL to receive payment notifications
+    callbackUrl: "https://vertex-trading.com/dashboard", // URL to redirect after payment
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,44 +62,93 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     
     // In a real implementation, we would integrate with the PesaPal API here
-    // This would involve:
-    // 1. Creating a payment request to PesaPal
-    // 2. Handling the callback/redirect
-    // 3. Verifying the payment status
-    
     if (paymentMethod === "mpesa") {
-      console.log("Processing M-Pesa payment with PesaPal:", {
-        amount,
-        phoneNumber,
-        ...pesapalConfig
+      try {
+        console.log("Processing M-Pesa payment with PesaPal:", {
+          amount,
+          phoneNumber,
+          ...pesapalConfig
+        });
+        
+        // In a real implementation, this would be an API call to your backend
+        // which would then make a request to PesaPal's API
+        
+        // Simulating PesaPal API request
+        const orderInfo = {
+          id: `order-${Date.now()}`,
+          amount: parseFloat(amount),
+          description: `Deposit to Vertex Trading Account`,
+          payment_method: "mpesa",
+          phone_number: phoneNumber,
+          currency: "USD",
+          callback_url: pesapalConfig.callbackUrl,
+          notification_id: `notify-${Date.now()}`,
+        };
+        
+        // Send payment request to PesaPal (simulated)
+        // In a real app, this would be a fetch/axios call to your backend
+        
+        // After successful payment initialization
+        toast({
+          title: "M-Pesa Request Sent",
+          description: "You should receive an M-Pesa prompt on your phone shortly. Please check your phone and enter your PIN to complete the transaction.",
+        });
+        
+        // Add transaction with PENDING status initially
+        addTransaction({
+          amount: parseFloat(amount),
+          type: "DEPOSIT",
+          status: "PENDING", // Status is PENDING until we get confirmation
+          details: `Via M-Pesa (${phoneNumber})`,
+        });
+        
+        // For demo purposes, we'll simulate a successful payment after 5 seconds
+        setTimeout(() => {
+          toast({
+            title: "Payment Successful",
+            description: `Your deposit of $${parseFloat(amount).toFixed(2)} via M-Pesa has been received.`,
+          });
+          
+          // Update the transaction to COMPLETED (this would normally happen via the IPN)
+          addTransaction({
+            amount: parseFloat(amount),
+            type: "DEPOSIT",
+            status: "COMPLETED",
+            details: `Via M-Pesa (${phoneNumber})`,
+          });
+        }, 5000);
+        
+      } catch (error) {
+        console.error("Error processing payment:", error);
+        toast({
+          title: "Payment Error",
+          description: "There was an error processing your payment. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Process other payment methods as before
+      addTransaction({
+        amount: parseFloat(amount),
+        type: "DEPOSIT",
+        status: "COMPLETED",
+        details: `Via ${
+          paymentMethod === "card" 
+            ? "Credit Card" 
+            : "Crypto Wallet"
+        }`,
+      });
+      
+      toast({
+        title: "Deposit Successful",
+        description: "Your deposit has been processed successfully.",
       });
     }
-    
-    // Add transaction to history
-    addTransaction({
-      amount: parseFloat(amount),
-      type: "DEPOSIT",
-      status: "COMPLETED",
-      details: `Via ${
-        paymentMethod === "card" 
-          ? "Credit Card" 
-          : paymentMethod === "crypto" 
-            ? "Crypto Wallet" 
-            : `M-Pesa (${phoneNumber})`
-      }`,
-    });
     
     setIsLoading(false);
     setAmount("");
     setPhoneNumber("");
     onClose();
-    
-    toast({
-      title: "Deposit Initiated",
-      description: paymentMethod === "mpesa" 
-        ? "Check your phone for the M-Pesa prompt."
-        : "Your deposit has been processed successfully.",
-    });
   };
 
   return (
@@ -222,6 +273,10 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
                 <p className="text-xs text-muted-foreground">
                   Enter the phone number registered with M-Pesa. You will receive a prompt to complete the payment.
                 </p>
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs">
+                  <p className="font-medium">Important:</p>
+                  <p>Keep your phone nearby. You'll receive a payment prompt on your M-Pesa registered number.</p>
+                </div>
               </div>
             )}
           </div>

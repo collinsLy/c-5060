@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useUser } from "@/context/UserContext";
 import SideNav from "./SideNav";
+import { Link } from "react-router-dom";
 
 interface HeaderProps {
   title: string;
@@ -33,9 +34,11 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
           <Button variant="ghost" size="icon">
             <Bell className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon">
-            <Settings className="h-5 w-5" />
-          </Button>
+          <Link to="/settings">
+            <Button variant="ghost" size="icon">
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
           <div className="ml-2 hidden sm:block">
             <div className="text-sm font-medium">{username}</div>
           </div>

@@ -54,11 +54,14 @@ const TradingViewChart = ({
           height: autosize ? "100%" : height,
           withdateranges: true,
           studies: ["RSI@tv-basicstudies", "MACD@tv-basicstudies", "Volume@tv-basicstudies"],
-          // Using it as an extended property that TradingView supports
-          studies_overrides: {
+          // Custom colors for volume indicator
+          overrides: {
+            "volumePaneSize": "medium",
             "volume.volume.color.0": "#ff5252",
             "volume.volume.color.1": "#4caf50",
-          }
+          },
+          fullscreen: true,
+          show_popup_button: true
         });
       }
     };

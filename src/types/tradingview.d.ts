@@ -18,6 +18,11 @@ interface TradingViewWidgetOptions {
   withdateranges?: boolean;
   studies?: string[];
   width?: number | string;
+  fullscreen?: boolean;
+  show_popup_button?: boolean;
+  overrides?: {
+    [key: string]: string | number | boolean;
+  };
 }
 
 interface TradingView {

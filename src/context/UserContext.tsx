@@ -92,6 +92,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     
     // Navigate to landing page
     navigate("/");
+    
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+    });
   };
 
   const addTransaction = (transaction: Omit<Transaction, "id" | "timestamp">) => {
@@ -126,7 +131,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     market: Market,
     stake: number,
     duration: number,
-    profitPercentage: number,
+    profit: number,
     type: TradeType
   ) => {
     // Check if user has enough balance
@@ -153,7 +158,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       
       // Simulate trade result (win/loss) - 50% chance of winning for demo
       const isWin = Math.random() > 0.5;
-      const profitAmount = isWin ? (stake * profitPercentage / 100) : 0;
+      const profitAmount = isWin ? (stake * profit / 100) : 0;
       
       // Create trade history entry
       const tradeResult: TradeHistory = {

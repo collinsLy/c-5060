@@ -80,16 +80,12 @@ const Features = () => {
             <div className="aspect-video bg-card rounded-lg overflow-hidden relative">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-full h-full">
-                  <video 
-                    className="w-full h-full object-cover"
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline
-                  >
-                    <source src="https://assets.codepen.io/9277864/crypto-chart-video.mp4" type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                  <iframe 
+                    className="w-full h-full border-0"
+                    src="https://www.tradingview.com/widgetembed/?frameElementId=tradingview_76d87&symbol=BINANCE:BTCUSDT&interval=D&hidesidetoolbar=1&symboledit=1&saveimage=1&toolbarbg=F1F3F6&studies=[]&hideideas=1&theme=dark&style=1&timezone=exchange&withdateranges=1&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&locale=en&utm_source=&utm_medium=widget&utm_campaign=chart&utm_term=BINANCE:BTCUSDT"
+                    allowTransparency={true}
+                    allowFullScreen={true}
+                  ></iframe>
                 </div>
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-background to-transparent"></div>

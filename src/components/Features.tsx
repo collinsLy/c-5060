@@ -79,8 +79,17 @@ const Features = () => {
           <div className="order-1 lg:order-2 glass-effect p-8 rounded-2xl">
             <div className="aspect-video bg-card rounded-lg overflow-hidden relative">
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-primary/10 p-8 rounded-full">
-                  <BarChart2 className="h-16 w-16 text-primary" />
+                <div className="w-full h-full">
+                  <video 
+                    className="w-full h-full object-cover"
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline
+                  >
+                    <source src="https://assets.codepen.io/9277864/crypto-chart-video.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
                 </div>
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-background to-transparent"></div>

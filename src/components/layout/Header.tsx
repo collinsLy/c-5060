@@ -1,17 +1,26 @@
 
-import { Menu, Bell, Settings } from "lucide-react";
+import { Menu, Bell, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useUser } from "@/context/UserContext";
 import SideNav from "./SideNav";
 import { Link } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   title: string;
 }
 
 const Header: React.FC<HeaderProps> = ({ title }) => {
-  const { username } = useUser();
+  const { username, setUsername, signOut } = useUser();
+
+  const handleSignOut = () => {
+    signOut();
+    toast({
+      title: "Signed Out",
+      description: "You have been successfully signed out.",
+    });
+  };
 
   return (
     <header className="bg-card/50 backdrop-blur-sm border-b border-accent/10 sticky top-0 z-30">
@@ -39,6 +48,9 @@ const Header: React.FC<HeaderProps> = ({ title }) => {
               <Settings className="h-5 w-5" />
             </Button>
           </Link>
+          <Button variant="ghost" size="icon" onClick={handleSignOut}>
+            <LogOut className="h-5 w-5" />
+          </Button>
           <div className="ml-2 hidden sm:block">
             <div className="text-sm font-medium">{username}</div>
           </div>

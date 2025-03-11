@@ -1,6 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 type TradeType = "STANDARD" | "MASTER" | "PRO" | "CUSTOM";
 type Market = "RISE_FALL" | "EVEN_ODD";
@@ -41,6 +41,8 @@ interface UserContextType {
     type: TradeType
   ) => Promise<void>;
   username: string;
+  setUsername: (username: string) => void;
+  signOut: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -52,16 +54,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const [tradeHistory, setTradeHistory] = useState<TradeHistory[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [username, setUsername] = useState<string>("kellyhunch");
+  const navigate = useNavigate();
 
   // Load data from localStorage on mount
   useEffect(() => {
     const savedBalance = localStorage.getItem("vertex_balance");
     const savedTradeHistory = localStorage.getItem("vertex_tradeHistory");
     const savedTransactions = localStorage.getItem("vertex_transactions");
+    const savedUsername = localStorage.getItem("vertex_username");
     
     if (savedBalance) setBalance(Number(savedBalance));
     if (savedTradeHistory) setTradeHistory(JSON.parse(savedTradeHistory));
     if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
+    if (savedUsername) setUsername(savedUsername);
   }, []);
 
   // Save data to localStorage when it changes
@@ -69,7 +74,25 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("vertex_balance", balance.toString());
     localStorage.setItem("vertex_tradeHistory", JSON.stringify(tradeHistory));
     localStorage.setItem("vertex_transactions", JSON.stringify(transactions));
-  }, [balance, tradeHistory, transactions]);
+    localStorage.setItem("vertex_username", username);
+  }, [balance, tradeHistory, transactions, username]);
+
+  const signOut = () => {
+    // Clear user data
+    localStorage.removeItem("vertex_balance");
+    localStorage.removeItem("vertex_tradeHistory");
+    localStorage.removeItem("vertex_transactions");
+    localStorage.removeItem("vertex_username");
+    
+    // Reset state
+    setBalance(1000);
+    setTradeHistory([]);
+    setTransactions([]);
+    setUsername("kellyhunch");
+    
+    // Navigate to landing page
+    navigate("/");
+  };
 
   const addTransaction = (transaction: Omit<Transaction, "id" | "timestamp">) => {
     const newTransaction = {
@@ -182,6 +205,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         addTransaction,
         executeTrade,
         username,
+        setUsername,
+        signOut
       }}
     >
       {children}

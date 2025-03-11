@@ -15,6 +15,7 @@ import Chart from "./pages/Chart";
 import Affiliate from "./pages/Affiliate";
 import Demo from "./pages/Demo";
 import More from "./pages/More";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/affiliate" element={<Affiliate />} />
             <Route path="/demo" element={<Demo />} />
             <Route path="/more" element={<More />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </BrowserRouter>
       </UserProvider>

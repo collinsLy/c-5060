@@ -10,7 +10,7 @@ import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
 const Profile = () => {
-  const { username } = useUser();
+  const { username, setUsername } = useUser();
   const [name, setName] = useState(username);
   const [email, setEmail] = useState("user@example.com");
   const [phone, setPhone] = useState("+1234567890");
@@ -19,6 +19,8 @@ const Profile = () => {
   
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    // Update the username in the context
+    setUsername(name);
     toast({
       title: "Profile Updated",
       description: "Your profile information has been saved.",

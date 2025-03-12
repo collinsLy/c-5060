@@ -2,59 +2,30 @@ import { toast } from "@/hooks/use-toast";
 import { Transaction } from "@/context/UserContext";
 import axios from "axios";
 
-// PesaPal configuration
-export const pesapalConfig = {
-  // Live credentials
-  liveConsumerKey: "RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX",
-  liveConsumerSecret: "hzBxk/UrOi+FKbiy0tiEOhe4UN4=",
-  
-  // Sandbox credentials
-  sandboxConsumerKey: "qkio1BGGYAXTu2JOfm7XSXNruoZsrqEW",
-  sandboxConsumerSecret: "osGQ364R49cXKeOYSpaOnT++rHs=",
-  
-  // Use live environment by default (can be toggled for testing)
-  useSandbox: false,
-  
-  // Domain and callback URLs
-  domain: "https://vertex-trading.vercel.app",
-  callbackUrl: "https://vertex-trading.vercel.app/dashboard", 
+// Store API Keys securely
+const pesapalConfig = {
+  consumerKey: process.env.PESAPAL_CONSUMER_KEY || 'RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX',
+  consumerSecret: process.env.PESAPAL_CONSUMER_SECRET || 'hzBxk/UrOi+FKbiy0tiEOhe4UN4=',
+  apiUrl: 'https://www.pesapal.com/api',
+  callbackUrl: 'https://vertex-trading.vercel.app/api/payments/callback',
   ipnUrl: "https://vertex-trading.vercel.app/api/payments/ipn",
-  
-  // API endpoints
-  get apiUrl() {
-    return this.useSandbox 
-      ? "https://cybqa.pesapal.com/pesapalv3" 
-      : "https://pay.pesapal.com/v3";
-  },
-  
-  // Get current environment credentials
-  get consumerKey() {
-    return this.useSandbox ? this.sandboxConsumerKey : this.liveConsumerKey;
-  },
-  
-  get consumerSecret() {
-    return this.useSandbox ? this.sandboxConsumerSecret : this.liveConsumerSecret;
-  }
+  useSandbox: false,
+  domain: "https://vertex-trading.vercel.app",
 };
 
 // Generate Bearer Token for API authentication
-export const getPesapalToken = async () => {
+export const getPesapalToken = async (): Promise<string> => {
+  const token = Buffer.from(`${pesapalConfig.consumerKey}:${pesapalConfig.consumerSecret}`).toString('base64');
   try {
-    const response = await axios.post(
-      `${pesapalConfig.apiUrl}/api/Auth/RequestToken`,
-      {
-        consumer_key: pesapalConfig.consumerKey,
-        consumer_secret: pesapalConfig.consumerSecret
-      }
-    );
-    
-    if (response.data && response.data.token) {
-      return response.data.token;
-    } else {
-      throw new Error("Failed to get authentication token");
-    }
+    const response = await axios.post(`${pesapalConfig.apiUrl}/api/Auth/RequestToken`, {}, {
+      headers: {
+        Authorization: `Basic ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.data.access_token;
   } catch (error) {
-    console.error("Error getting Pesapal token:", error);
+    console.error('Error fetching access token:', error);
     throw error;
   }
 };
@@ -85,7 +56,6 @@ export const registerIPNUrl = async (token: string) => {
 
 // Submit payment request to Pesapal
 export const submitPesapalPaymentRequest = async (
-  token: string,
   paymentData: {
     amount: number;
     phoneNumber: string;
@@ -95,6 +65,7 @@ export const submitPesapalPaymentRequest = async (
   }
 ) => {
   try {
+    const token = await getPesapalToken(); // Retrieve access token
     const response = await axios.post(
       `${pesapalConfig.apiUrl}/api/Transactions/SubmitOrderRequest`,
       {
@@ -107,19 +78,18 @@ export const submitPesapalPaymentRequest = async (
         billing_address: {
           phone_number: paymentData.phoneNumber,
           email_address: paymentData.email || "",
-        }
+        },
       },
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
+          'Content-Type': 'application/json',
+        },
       }
     );
-    
     return response.data;
   } catch (error) {
-    console.error("Error submitting payment request:", error);
+    console.error('Error submitting payment request:', error);
     throw error;
   }
 };
@@ -172,14 +142,11 @@ export const processMpesaPayment = async (
       description: "Connecting to Pesapal payment gateway...",
     });
 
-    // Get authentication token
-    const token = await getPesapalToken();
-    
     // Register IPN URL (this would typically be done once during app setup)
     // await registerIPNUrl(token);
     
     // Submit payment request
-    const paymentResponse = await submitPesapalPaymentRequest(token, {
+    const paymentResponse = await submitPesapalPaymentRequest({
       amount: formattedAmount,
       phoneNumber,
       email: email || "",

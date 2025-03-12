@@ -22,7 +22,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         <Button
           type="button"
           variant={paymentMethod === "card" ? "default" : "outline"}
-          onClick={() => setPaymentMethod("card")}
+          onClick={() => !disabled && setPaymentMethod("card")}
           className="flex-1 flex items-center gap-2 justify-center"
           disabled={disabled}
           aria-selected={paymentMethod === "card"}
@@ -33,7 +33,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         <Button
           type="button"
           variant={paymentMethod === "crypto" ? "default" : "outline"}
-          onClick={() => setPaymentMethod("crypto")}
+          onClick={() => !disabled && setPaymentMethod("crypto")}
           className="flex-1 flex items-center gap-2 justify-center"
           disabled={disabled}
           aria-selected={paymentMethod === "crypto"}
@@ -44,7 +44,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         <Button
           type="button"
           variant={paymentMethod === "mpesa" ? "default" : "outline"}
-          onClick={() => setPaymentMethod("mpesa")}
+          onClick={() => !disabled && setPaymentMethod("mpesa")}
           className="flex-1 flex items-center gap-2 justify-center"
           disabled={disabled}
           aria-selected={paymentMethod === "mpesa"}

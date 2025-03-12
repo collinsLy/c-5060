@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -30,6 +29,7 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
   const [paymentMethod, setPaymentMethod] = useState<string>("card");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [transactionStatus, setTransactionStatus] = useState<string>("");
 
   const validateForm = (): boolean => {
     // Validate amount
@@ -47,7 +47,7 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
       if (!validatePhoneNumber(phoneNumber)) {
         toast({
           title: "Invalid Phone Number",
-          description: "Please enter a valid M-Pesa phone number.",
+          description: "Please enter a valid M-Pesa phone number starting with 254.",
           variant: "destructive",
         });
         return false;
@@ -65,25 +65,26 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     }
 
     setIsLoading(true);
+    setTransactionStatus("Processing payment...");
     
     try {
       if (paymentMethod === "mpesa") {
         await processMpesaPayment(amount, phoneNumber, addTransaction);
+        setTransactionStatus("Payment request sent. Check your phone for the M-Pesa prompt.");
+        
+        // Keep the modal open for M-Pesa payments to show status
+        setTimeout(() => {
+          setTransactionStatus("Waiting for confirmation...");
+        }, 3000);
       } else {
         processOtherPayment(amount, paymentMethod, addTransaction);
-      }
-      
-      if (paymentMethod !== "mpesa") {
         setAmount("");
-        setPhoneNumber("");
+        setTransactionStatus("");
         onClose();
-      } else {
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 2000);
       }
     } catch (error) {
       console.error("Payment processing error:", error);
+      setTransactionStatus("");
       setIsLoading(false);
     }
   };
@@ -99,6 +100,7 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
           <MpesaPaymentForm
             phoneNumber={phoneNumber}
             setPhoneNumber={setPhoneNumber}
+            isLoading={isLoading}
           />
         );
       default:
@@ -110,7 +112,16 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     if (!isLoading) {
       setAmount("");
       setPhoneNumber("");
+      setTransactionStatus("");
       onClose();
+    } else {
+      // Confirm before closing if a transaction is in progress
+      const confirmClose = window.confirm("A transaction is in progress. Are you sure you want to close this window?");
+      if (confirmClose) {
+        setIsLoading(false);
+        setTransactionStatus("");
+        onClose();
+      }
     }
   };
 
@@ -153,6 +164,12 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
             />
             
             {renderPaymentForm()}
+            
+            {transactionStatus && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-800 text-sm">
+                <p>{transactionStatus}</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>

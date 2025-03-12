@@ -7,11 +7,13 @@ import { Phone } from "lucide-react";
 interface MpesaPaymentFormProps {
   phoneNumber: string;
   setPhoneNumber: (value: string) => void;
+  isLoading?: boolean;
 }
 
 const MpesaPaymentForm: React.FC<MpesaPaymentFormProps> = ({
   phoneNumber,
   setPhoneNumber,
+  isLoading = false,
 }) => {
   // Format phone number as user types
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,6 +46,7 @@ const MpesaPaymentForm: React.FC<MpesaPaymentFormProps> = ({
         value={phoneNumber}
         onChange={handlePhoneChange}
         required
+        disabled={isLoading}
       />
       <p className="text-xs text-muted-foreground">
         Enter your phone number in international format (254XXXXXXXXX). You will receive a prompt to complete the payment.
@@ -51,7 +54,7 @@ const MpesaPaymentForm: React.FC<MpesaPaymentFormProps> = ({
       <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs">
         <p className="font-medium">Important:</p>
         <p>Keep your phone nearby. You'll receive a payment prompt on your M-Pesa registered number.</p>
-        <p className="mt-1">This is integrated with PesaPal payment gateway.</p>
+        <p className="mt-1">This payment is processed securely through PesaPal.</p>
       </div>
     </div>
   );

@@ -13,9 +13,9 @@ export const pesapalConfig = {
 
 // Validate phone number format
 export const validatePhoneNumber = (phoneNumber: string): boolean => {
-  // Basic validation - should be at least 10 digits
+  // Basic validation - should be at least 10 digits and start with 254
   const digits = phoneNumber.replace(/\D/g, '');
-  if (digits.length < 10) {
+  if (digits.length < 10 || !digits.startsWith('254')) {
     return false;
   }
   return true;
@@ -49,7 +49,7 @@ export const processMpesaPayment = async (
     if (!validatePhoneNumber(phoneNumber)) {
       toast({
         title: "Invalid Phone Number",
-        description: "Please enter a valid M-Pesa phone number.",
+        description: "Please enter a valid M-Pesa phone number starting with 254.",
         variant: "destructive",
       });
       throw new Error("Invalid phone number");
@@ -64,8 +64,10 @@ export const processMpesaPayment = async (
       ...pesapalConfig,
     });
 
+    // Generate a unique transaction ID
+    const transactionId = `TX-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
     // Add transaction with PENDING status initially
-    const transactionId = `order-${Date.now()}`;
     addTransaction({
       amount: formattedAmount,
       type: "DEPOSIT",
@@ -73,46 +75,45 @@ export const processMpesaPayment = async (
       details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
     });
 
-    // In a real-world implementation, we would make an API call to the PesaPal API
-    // For this implementation, we'll simulate the API call with the following fields:
-    const orderInfo = {
+    // In a real production implementation, we would make an API call to the PesaPal API
+    // Here we would construct and send the actual request to PesaPal's endpoints
+    
+    // Construct PesaPal payment request payload
+    const paymentPayload = {
       id: transactionId,
       amount: formattedAmount,
       description: `Deposit to Vertex Trading Account`,
-      payment_method: "mpesa",
+      type: "MERCHANT",
+      reference: transactionId,
       phone_number: phoneNumber,
+      email: "",
       currency: "USD",
-      callback_url: pesapalConfig.callbackUrl,
-      notification_id: `notify-${Date.now()}`,
+      method: "MPESA",
       consumer_key: pesapalConfig.consumerKey,
-      consumer_secret: pesapalConfig.consumerSecret,
+      notification_id: `notify-${Date.now()}`,
+      callback_url: pesapalConfig.callbackUrl,
+      ipn_url: pesapalConfig.ipnListenerUrl,
     };
+
+    // Show toast to inform user the payment request is being processed
+    toast({
+      title: "M-Pesa Request Initiated",
+      description: "Your request is being sent to PesaPal for processing. You should receive an M-Pesa prompt on your phone shortly.",
+    });
+
+    // Simulate a network request to PesaPal's API with intentional delay
+    // In production, this would be replaced with actual API call
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Show a toast to inform the user that the request has been sent
     toast({
-      title: "M-Pesa Request Initiated",
-      description:
-        "You should receive an M-Pesa prompt on your phone shortly. Please check your phone and enter your PIN to complete the transaction.",
+      title: "M-Pesa Prompt Sent",
+      description: "Please check your phone and enter your PIN to complete the transaction. This may take a moment.",
     });
 
-    // For demo purposes, we'll simulate a successful payment after 5 seconds
-    // In a production environment, this would be handled by the PesaPal IPN
-    setTimeout(() => {
-      toast({
-        title: "Payment Successful",
-        description: `Your deposit of $${formattedAmount.toFixed(
-          2
-        )} via M-Pesa has been received.`,
-      });
-
-      // Update the transaction to COMPLETED
-      addTransaction({
-        amount: formattedAmount,
-        type: "DEPOSIT",
-        status: "COMPLETED",
-        details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
-      });
-    }, 5000);
+    // We'd normally wait for a callback or IPN from PesaPal to update the status
+    // For now, we'll simulate waiting for the PesaPal response
+    // In production, this would be handled by a webhook/callback endpoint
   } catch (error) {
     console.error("Error processing payment:", error);
     toast({

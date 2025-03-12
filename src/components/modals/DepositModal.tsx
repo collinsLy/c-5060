@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -43,19 +42,18 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (paymentMethod === "mpesa" && (!phoneNumber || phoneNumber.length < 10)) {
-      toast({
-        title: "Invalid Phone Number",
-        description: "Please enter a valid M-Pesa phone number.",
-        variant: "destructive",
-      });
-      return;
+    if (paymentMethod === "mpesa") {
+      if (!phoneNumber || phoneNumber.length < 10) {
+        toast({
+          title: "Invalid Phone Number",
+          description: "Please enter a valid M-Pesa phone number.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsLoading(true);
-    
-    // Simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 1500));
     
     try {
       if (paymentMethod === "mpesa") {
@@ -64,12 +62,17 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
         processOtherPayment(amount, paymentMethod, addTransaction);
       }
       
-      setAmount("");
-      setPhoneNumber("");
-      onClose();
+      if (paymentMethod !== "mpesa") {
+        setAmount("");
+        setPhoneNumber("");
+        onClose();
+      } else {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 2000);
+      }
     } catch (error) {
       console.error("Payment processing error:", error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -92,8 +95,16 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleClose = () => {
+    if (!isLoading) {
+      setAmount("");
+      setPhoneNumber("");
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px] bg-card text-foreground">
         <DialogHeader>
           <DialogTitle>Deposit Funds</DialogTitle>
@@ -115,18 +126,20 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
                 step="0.01"
                 className="bg-background/50"
                 required
+                disabled={isLoading}
               />
             </div>
             
             <PaymentMethodSelector
               paymentMethod={paymentMethod}
               setPaymentMethod={setPaymentMethod}
+              disabled={isLoading}
             />
             
             {renderPaymentForm()}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>

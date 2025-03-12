@@ -6,9 +6,9 @@ import { Transaction } from "@/context/UserContext";
 export const pesapalConfig = {
   consumerKey: "RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX",
   consumerSecret: "hzBxk/UrOi+FKbiy0tiEOhe4UN4=",
-  domain: "vertex-trading.com", // Domain registered with PesaPal
-  ipnListenerUrl: "https://vertex-trading.com/api/payments/ipn", // URL to receive payment notifications
-  callbackUrl: "https://vertex-trading.com/dashboard", // URL to redirect after payment
+  domain: "https://vertex-trading.vercel.app", // Updated domain
+  ipnListenerUrl: "https://vertex-trading.vercel.app/api/payments/ipn", // Updated IPN URL
+  callbackUrl: "https://vertex-trading.vercel.app/dashboard", // Updated callback URL
 };
 
 // Process M-Pesa payment through PesaPal
@@ -24,12 +24,19 @@ export const processMpesaPayment = async (
       ...pesapalConfig,
     });
 
-    // In a real implementation, this would be an API call to your backend
-    // which would then make a request to PesaPal's API
+    // Add transaction with PENDING status initially
+    const transactionId = `order-${Date.now()}`;
+    addTransaction({
+      amount: parseFloat(amount),
+      type: "DEPOSIT",
+      status: "PENDING",
+      details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
+    });
 
-    // Simulating PesaPal API request
+    // In a real-world implementation, we would make an API call to the PesaPal API
+    // For this implementation, we'll simulate the API call with the following fields:
     const orderInfo = {
-      id: `order-${Date.now()}`,
+      id: transactionId,
       amount: parseFloat(amount),
       description: `Deposit to Vertex Trading Account`,
       payment_method: "mpesa",
@@ -37,27 +44,19 @@ export const processMpesaPayment = async (
       currency: "USD",
       callback_url: pesapalConfig.callbackUrl,
       notification_id: `notify-${Date.now()}`,
+      consumer_key: pesapalConfig.consumerKey,
+      consumer_secret: pesapalConfig.consumerSecret,
     };
 
-    // Send payment request to PesaPal (simulated)
-    // In a real app, this would be a fetch/axios call to your backend
-
-    // After successful payment initialization
+    // Show a toast to inform the user that the request has been sent
     toast({
-      title: "M-Pesa Request Sent",
+      title: "M-Pesa Request Initiated",
       description:
         "You should receive an M-Pesa prompt on your phone shortly. Please check your phone and enter your PIN to complete the transaction.",
     });
 
-    // Add transaction with PENDING status initially
-    addTransaction({
-      amount: parseFloat(amount),
-      type: "DEPOSIT",
-      status: "PENDING", // Status is PENDING until we get confirmation
-      details: `Via M-Pesa (${phoneNumber})`,
-    });
-
     // For demo purposes, we'll simulate a successful payment after 5 seconds
+    // In a production environment, this would be handled by the PesaPal IPN
     setTimeout(() => {
       toast({
         title: "Payment Successful",
@@ -66,12 +65,12 @@ export const processMpesaPayment = async (
         )} via M-Pesa has been received.`,
       });
 
-      // Update the transaction to COMPLETED (this would normally happen via the IPN)
+      // Update the transaction to COMPLETED
       addTransaction({
         amount: parseFloat(amount),
         type: "DEPOSIT",
         status: "COMPLETED",
-        details: `Via M-Pesa (${phoneNumber})`,
+        details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
       });
     }, 5000);
   } catch (error) {

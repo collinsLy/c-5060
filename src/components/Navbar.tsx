@@ -2,12 +2,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const Navbar = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   const navLinks = [
     { name: "Features", href: "#features" },
     { name: "Bots", href: "#bots" },
@@ -42,10 +40,10 @@ const Navbar = () => {
 
           <div className="hidden md:block">
             <Button asChild variant="outline" className="mr-4">
-              <Link to="/dashboard">Login</Link>
+              <Link to="/auth">Login</Link>
             </Button>
             <Button asChild>
-              <Link to="/dashboard">Get Started</Link>
+              <Link to="/auth">Get Started</Link>
             </Button>
           </div>
 
@@ -69,10 +67,10 @@ const Navbar = () => {
                     </a>
                   ))}
                   <Button asChild variant="outline" className="w-full mt-4">
-                    <Link to="/dashboard">Login</Link>
+                    <Link to="/auth">Login</Link>
                   </Button>
                   <Button asChild className="w-full">
-                    <Link to="/dashboard">Get Started</Link>
+                    <Link to="/auth">Get Started</Link>
                   </Button>
                 </div>
               </SheetContent>

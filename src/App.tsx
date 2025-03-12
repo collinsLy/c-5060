@@ -3,21 +3,98 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Bots from "./pages/Bots";
 import Trade from "./pages/Trade";
 import Profile from "./pages/Profile";
 import Transactions from "./pages/Transactions";
-import { UserProvider } from "./context/UserContext";
+import { UserProvider, useUser } from "./context/UserContext";
 import Chart from "./pages/Chart";
 import Affiliate from "./pages/Affiliate";
 import Demo from "./pages/Demo";
 import More from "./pages/More";
 import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
 
 const queryClient = new QueryClient();
+
+// Protected route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { session, isLoading } = useUser();
+  
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+  
+  if (!session) {
+    return <Navigate to="/auth" />;
+  }
+  
+  return <>{children}</>;
+};
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/auth" element={<Auth />} />
+      
+      {/* Protected routes */}
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      } />
+      <Route path="/bots" element={
+        <ProtectedRoute>
+          <Bots />
+        </ProtectedRoute>
+      } />
+      <Route path="/trade" element={
+        <ProtectedRoute>
+          <Trade />
+        </ProtectedRoute>
+      } />
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      } />
+      <Route path="/transactions" element={
+        <ProtectedRoute>
+          <Transactions />
+        </ProtectedRoute>
+      } />
+      <Route path="/chart" element={
+        <ProtectedRoute>
+          <Chart />
+        </ProtectedRoute>
+      } />
+      <Route path="/affiliate" element={
+        <ProtectedRoute>
+          <Affiliate />
+        </ProtectedRoute>
+      } />
+      <Route path="/demo" element={
+        <ProtectedRoute>
+          <Demo />
+        </ProtectedRoute>
+      } />
+      <Route path="/more" element={
+        <ProtectedRoute>
+          <More />
+        </ProtectedRoute>
+      } />
+      <Route path="/settings" element={
+        <ProtectedRoute>
+          <Settings />
+        </ProtectedRoute>
+      } />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -26,19 +103,7 @@ const App = () => (
         <UserProvider>
           <Toaster />
           <Sonner />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/bots" element={<Bots />} />
-            <Route path="/trade" element={<Trade />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/chart" element={<Chart />} />
-            <Route path="/affiliate" element={<Affiliate />} />
-            <Route path="/demo" element={<Demo />} />
-            <Route path="/more" element={<More />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
+          <AppRoutes />
         </UserProvider>
       </BrowserRouter>
     </TooltipProvider>

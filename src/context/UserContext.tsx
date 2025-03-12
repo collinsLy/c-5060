@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
 
 type TradeType = "STANDARD" | "MASTER" | "PRO" | "CUSTOM";
 type Market = "RISE_FALL" | "EVEN_ODD";
@@ -44,6 +46,9 @@ interface UserContextType {
   username: string;
   setUsername: (username: string) => void;
   signOut: () => void;
+  session: Session | null;
+  user: User | null;
+  isLoading: boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -51,53 +56,166 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ 
   children 
 }) => {
-  const [balance, setBalance] = useState<number>(0); // Initialize with 0 balance
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [balance, setBalance] = useState<number>(0);
   const [tradeHistory, setTradeHistory] = useState<TradeHistory[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [username, setUsername] = useState<string>("kellyhunch");
+  const [username, setUsername] = useState<string>("");
   const navigate = useNavigate();
 
-  // Load data from localStorage on mount
+  // Load session and user data
   useEffect(() => {
-    const savedBalance = localStorage.getItem("vertex_balance");
-    const savedTradeHistory = localStorage.getItem("vertex_tradeHistory");
-    const savedTransactions = localStorage.getItem("vertex_transactions");
-    const savedUsername = localStorage.getItem("vertex_username");
-    
-    if (savedBalance) setBalance(Number(savedBalance));
-    if (savedTradeHistory) setTradeHistory(JSON.parse(savedTradeHistory));
-    if (savedTransactions) setTransactions(JSON.parse(savedTransactions));
-    if (savedUsername) setUsername(savedUsername);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setIsLoading(true);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        
+        if (currentSession?.user) {
+          await loadUserData(currentSession.user.id);
+        } else {
+          resetUserData();
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Get initial session
+    const initializeAuth = async () => {
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      
+      if (initialSession?.user) {
+        await loadUserData(initialSession.user.id);
+      } else {
+        resetUserData();
+      }
+      
+      setIsLoading(false);
+    };
+
+    initializeAuth();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Save data to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem("vertex_balance", balance.toString());
-    localStorage.setItem("vertex_tradeHistory", JSON.stringify(tradeHistory));
-    localStorage.setItem("vertex_transactions", JSON.stringify(transactions));
-    localStorage.setItem("vertex_username", username);
-  }, [balance, tradeHistory, transactions, username]);
+  // Load user data from database
+  const loadUserData = async (userId: string) => {
+    try {
+      // Get profile data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('username, balance')
+        .eq('id', userId)
+        .single();
 
-  const signOut = () => {
-    // Clear user data
-    localStorage.removeItem("vertex_balance");
-    localStorage.removeItem("vertex_tradeHistory");
-    localStorage.removeItem("vertex_transactions");
-    localStorage.removeItem("vertex_username");
-    
-    // Reset state
-    setBalance(0); // Reset to 0 instead of 1000
+      if (profileError) throw profileError;
+      
+      if (profileData) {
+        setUsername(profileData.username || "");
+        setBalance(profileData.balance || 0);
+      }
+
+      // Get trade history
+      const { data: tradeData, error: tradeError } = await supabase
+        .from('trade_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: false });
+
+      if (tradeError) throw tradeError;
+      
+      if (tradeData) {
+        setTradeHistory(tradeData.map(trade => ({
+          id: trade.id,
+          timestamp: new Date(trade.timestamp),
+          pair: trade.pair as CryptoPair,
+          market: trade.market as Market,
+          stake: trade.stake,
+          profit: trade.profit,
+          result: trade.result as "WIN" | "LOSS",
+          type: trade.type as TradeType
+        })));
+      }
+
+      // Get transactions
+      const { data: transactionData, error: transactionError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: false });
+
+      if (transactionError) throw transactionError;
+      
+      if (transactionData) {
+        setTransactions(transactionData.map(transaction => ({
+          id: transaction.id,
+          timestamp: new Date(transaction.timestamp),
+          amount: transaction.amount,
+          type: transaction.type as "DEPOSIT" | "WITHDRAWAL",
+          status: transaction.status as "COMPLETED" | "PENDING" | "FAILED",
+          details: transaction.details
+        })));
+      }
+    } catch (error: any) {
+      console.error("Error loading user data:", error.message);
+      toast({
+        title: "Error",
+        description: "Failed to load user data. Please try refreshing the page.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Reset user data
+  const resetUserData = () => {
+    setBalance(0);
     setTradeHistory([]);
     setTransactions([]);
-    setUsername("kellyhunch");
-    
-    // Navigate to landing page
-    navigate("/");
-    
-    toast({
-      title: "Signed Out",
-      description: "You have been successfully signed out.",
-    });
+    setUsername("");
+  };
+
+  // Sign out function
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      resetUserData();
+      navigate("/");
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign out.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Update profile function
+  const updateProfile = async (updates: { username?: string; balance?: number }) => {
+    try {
+      if (!user) throw new Error("User not authenticated");
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Error updating profile:", error.message);
+      throw error;
+    }
   };
 
   const validateTransaction = (transaction: Omit<Transaction, "id" | "timestamp">): boolean => {
@@ -127,41 +245,71 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     return true;
   };
 
-  const addTransaction = (transaction: Omit<Transaction, "id" | "timestamp">) => {
+  const addTransaction = async (transaction: Omit<Transaction, "id" | "timestamp">) => {
     // Validate transaction before processing
     if (transaction.status === "COMPLETED" && !validateTransaction(transaction)) {
       return;
     }
 
-    const newTransaction = {
-      ...transaction,
-      id: `tx-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      timestamp: new Date(),
-    };
+    try {
+      if (!user) throw new Error("User not authenticated");
 
-    setTransactions((prev) => [newTransaction, ...prev]);
+      // Insert into database
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          amount: transaction.amount,
+          type: transaction.type,
+          status: transaction.status,
+          details: transaction.details
+        })
+        .select()
+        .single();
 
-    // Update balance if transaction is completed
-    if (transaction.status === "COMPLETED") {
-      if (transaction.type === "DEPOSIT") {
-        setBalance((prev) => {
-          const newBalance = prev + transaction.amount;
-          return parseFloat(newBalance.toFixed(2)); // Ensure 2 decimal places
-        });
-        toast({
-          title: "Deposit Successful",
-          description: `$${transaction.amount.toFixed(2)} has been added to your account.`,
-        });
-      } else if (transaction.type === "WITHDRAWAL") {
-        setBalance((prev) => {
-          const newBalance = prev - transaction.amount;
-          return parseFloat(newBalance.toFixed(2)); // Ensure 2 decimal places
-        });
-        toast({
-          title: "Withdrawal Successful",
-          description: `$${transaction.amount.toFixed(2)} has been withdrawn from your account.`,
-        });
+      if (error) throw error;
+
+      // Add to local state
+      const newTransaction: Transaction = {
+        id: data.id,
+        timestamp: new Date(data.timestamp),
+        amount: data.amount,
+        type: data.type,
+        status: data.status,
+        details: data.details
+      };
+
+      setTransactions((prev) => [newTransaction, ...prev]);
+
+      // Update balance if transaction is completed
+      if (transaction.status === "COMPLETED") {
+        let newBalance;
+        if (transaction.type === "DEPOSIT") {
+          newBalance = balance + transaction.amount;
+          toast({
+            title: "Deposit Successful",
+            description: `$${transaction.amount.toFixed(2)} has been added to your account.`,
+          });
+        } else if (transaction.type === "WITHDRAWAL") {
+          newBalance = balance - transaction.amount;
+          toast({
+            title: "Withdrawal Successful",
+            description: `$${transaction.amount.toFixed(2)} has been withdrawn from your account.`,
+          });
+        }
+
+        if (newBalance !== undefined) {
+          setBalance(parseFloat(newBalance.toFixed(2)));
+          await updateProfile({ balance: newBalance });
+        }
       }
+    } catch (error: any) {
+      console.error("Error adding transaction:", error.message);
+      toast({
+        title: "Transaction Failed",
+        description: error.message || "An error occurred while processing your transaction.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -185,27 +333,48 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       return;
     }
-
-    // Deduct stake from balance
-    setBalance((prev) => parseFloat((prev - stake).toFixed(2)));
     
-    toast({
-      title: "Trade Started",
-      description: `Trading ${pair} with $${stake.toFixed(2)}`,
-    });
-
-    // Simulate trade execution with the given duration
     try {
+      if (!user) throw new Error("User not authenticated");
+
+      // Deduct stake from balance
+      const newBalance = parseFloat((balance - stake).toFixed(2));
+      setBalance(newBalance);
+      await updateProfile({ balance: newBalance });
+      
+      toast({
+        title: "Trade Started",
+        description: `Trading ${pair} with $${stake.toFixed(2)}`,
+      });
+
+      // Simulate trade execution with the given duration
       await new Promise((resolve) => setTimeout(resolve, duration * 1000));
       
       // Simulate trade result (win/loss) - 50% chance of winning for demo
       const isWin = Math.random() > 0.5;
       const profitAmount = isWin ? parseFloat((stake * profit / 100).toFixed(2)) : 0;
       
-      // Create trade history entry
+      // Create trade history entry in database
+      const { data: tradeData, error: tradeError } = await supabase
+        .from('trade_history')
+        .insert({
+          user_id: user.id,
+          pair,
+          market,
+          stake,
+          profit: profitAmount,
+          result: isWin ? "WIN" : "LOSS",
+          type
+        })
+        .select()
+        .single();
+
+      if (tradeError) throw tradeError;
+      
+      // Add to local state
       const tradeResult: TradeHistory = {
-        id: `trade-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-        timestamp: new Date(),
+        id: tradeData.id,
+        timestamp: new Date(tradeData.timestamp),
         pair,
         market,
         stake,
@@ -218,7 +387,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       
       // Update balance if win
       if (isWin) {
-        setBalance((prev) => parseFloat((prev + stake + profitAmount).toFixed(2)));
+        const updatedBalance = parseFloat((newBalance + stake + profitAmount).toFixed(2));
+        setBalance(updatedBalance);
+        await updateProfile({ balance: updatedBalance });
+        
         toast({
           title: "Trade Successful!",
           description: `You won $${profitAmount.toFixed(2)} on ${pair}!`,
@@ -231,12 +403,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
           variant: "default",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       // Refund stake in case of error
-      setBalance((prev) => parseFloat((prev + stake).toFixed(2)));
+      const refundBalance = parseFloat((balance).toFixed(2));
+      setBalance(refundBalance);
+      await updateProfile({ balance: refundBalance });
+      
+      console.error("Error executing trade:", error.message);
       toast({
         title: "Trade Error",
-        description: "An error occurred while executing your trade.",
+        description: error.message || "An error occurred while executing your trade.",
         variant: "destructive",
       });
     }
@@ -253,7 +429,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         executeTrade,
         username,
         setUsername,
-        signOut
+        signOut,
+        session,
+        user,
+        isLoading
       }}
     >
       {children}

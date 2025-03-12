@@ -1,14 +1,215 @@
-
 import { toast } from "@/hooks/use-toast";
 import { Transaction } from "@/context/UserContext";
+import axios from "axios";
 
 // PesaPal configuration
 export const pesapalConfig = {
-  consumerKey: "RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX",
-  consumerSecret: "hzBxk/UrOi+FKbiy0tiEOhe4UN4=",
-  domain: "https://vertex-trading.vercel.app", // Domain
-  ipnListenerUrl: "https://vertex-trading.vercel.app/api/payments/ipn", // IPN URL
-  callbackUrl: "https://vertex-trading.vercel.app/dashboard", // Callback URL
+  // Live credentials
+  liveConsumerKey: "RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX",
+  liveConsumerSecret: "hzBxk/UrOi+FKbiy0tiEOhe4UN4=",
+  
+  // Sandbox credentials
+  sandboxConsumerKey: "qkio1BGGYAXTu2JOfm7XSXNruoZsrqEW",
+  sandboxConsumerSecret: "osGQ364R49cXKeOYSpaOnT++rHs=",
+  
+  // Use live environment by default (can be toggled for testing)
+  useSandbox: false,
+  
+  // Domain and callback URLs
+  domain: "https://vertex-trading.vercel.app",
+  callbackUrl: "https://vertex-trading.vercel.app/dashboard", 
+  ipnUrl: "https://vertex-trading.vercel.app/api/payments/ipn",
+  
+  // API endpoints
+  get apiUrl() {
+    return this.useSandbox 
+      ? "https://cybqa.pesapal.com/pesapalv3" 
+      : "https://pay.pesapal.com/v3";
+  },
+  
+  // Get current environment credentials
+  get consumerKey() {
+    return this.useSandbox ? this.sandboxConsumerKey : this.liveConsumerKey;
+  },
+  
+  get consumerSecret() {
+    return this.useSandbox ? this.sandboxConsumerSecret : this.liveConsumerSecret;
+  }
+};
+
+// Generate Bearer Token for API authentication
+export const getPesapalToken = async () => {
+  try {
+    const response = await axios.post(
+      `${pesapalConfig.apiUrl}/api/Auth/RequestToken`,
+      {
+        consumer_key: pesapalConfig.consumerKey,
+        consumer_secret: pesapalConfig.consumerSecret
+      }
+    );
+    
+    if (response.data && response.data.token) {
+      return response.data.token;
+    } else {
+      throw new Error("Failed to get authentication token");
+    }
+  } catch (error) {
+    console.error("Error getting Pesapal token:", error);
+    throw error;
+  }
+};
+
+// Register IPN URL with Pesapal
+export const registerIPNUrl = async (token: string) => {
+  try {
+    const response = await axios.post(
+      `${pesapalConfig.apiUrl}/api/URLSetup/RegisterIPN`,
+      {
+        url: pesapalConfig.ipnUrl,
+        ipn_notification_type: "GET"
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Error registering IPN URL:", error);
+    throw error;
+  }
+};
+
+// Submit payment request to Pesapal
+export const submitPesapalPaymentRequest = async (
+  token: string,
+  paymentData: {
+    amount: number;
+    phoneNumber: string;
+    email: string;
+    description: string;
+    transactionId: string;
+  }
+) => {
+  try {
+    const response = await axios.post(
+      `${pesapalConfig.apiUrl}/api/Transactions/SubmitOrderRequest`,
+      {
+        id: paymentData.transactionId,
+        currency: "USD",
+        amount: paymentData.amount,
+        description: paymentData.description,
+        callback_url: pesapalConfig.callbackUrl,
+        notification_id: `notify-${Date.now()}`,
+        billing_address: {
+          phone_number: paymentData.phoneNumber,
+          email_address: paymentData.email || "",
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error("Error submitting payment request:", error);
+    throw error;
+  }
+};
+
+// Process M-Pesa payment through PesaPal
+export const processMpesaPayment = async (
+  amount: string,
+  phoneNumber: string,
+  email: string,
+  addTransaction: (transaction: Omit<Transaction, "id" | "timestamp">) => void
+): Promise<{redirectUrl?: string; orderTrackingId?: string; error?: string}> => {
+  try {
+    // Validate amount
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid deposit amount.",
+        variant: "destructive",
+      });
+      return {error: "Invalid amount"};
+    }
+
+    // Validate phone number
+    if (!validatePhoneNumber(phoneNumber)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid M-Pesa phone number starting with 254.",
+        variant: "destructive",
+      });
+      return {error: "Invalid phone number"};
+    }
+
+    // Format amount to 2 decimal places
+    const formattedAmount = formatAmount(amount);
+
+    // Generate a unique transaction ID
+    const transactionId = `TX-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    // Add transaction with PENDING status initially
+    addTransaction({
+      amount: formattedAmount,
+      type: "DEPOSIT",
+      status: "PENDING",
+      details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
+    });
+
+    toast({
+      title: "Initializing Payment",
+      description: "Connecting to Pesapal payment gateway...",
+    });
+
+    // Get authentication token
+    const token = await getPesapalToken();
+    
+    // Register IPN URL (this would typically be done once during app setup)
+    // await registerIPNUrl(token);
+    
+    // Submit payment request
+    const paymentResponse = await submitPesapalPaymentRequest(token, {
+      amount: formattedAmount,
+      phoneNumber,
+      email: email || "",
+      description: `Deposit to Vertex Trading Account - $${formattedAmount}`,
+      transactionId
+    });
+    
+    // Handle the Pesapal response
+    if (paymentResponse && paymentResponse.redirect_url) {
+      toast({
+        title: "Payment Gateway Ready",
+        description: "You'll be redirected to complete your payment with M-Pesa.",
+      });
+      
+      return {
+        redirectUrl: paymentResponse.redirect_url,
+        orderTrackingId: paymentResponse.order_tracking_id
+      };
+    } else {
+      throw new Error("Payment initialization failed");
+    }
+  } catch (error) {
+    console.error("Error processing payment:", error);
+    toast({
+      title: "Payment Error",
+      description: "There was an error connecting to the payment gateway. Please try again.",
+      variant: "destructive",
+    });
+    return {error: error instanceof Error ? error.message : "Unknown error"};
+  }
 };
 
 // Validate phone number format
@@ -25,104 +226,6 @@ export const validatePhoneNumber = (phoneNumber: string): boolean => {
 export const formatAmount = (amount: string | number): number => {
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   return parseFloat(numericAmount.toFixed(2));
-};
-
-// Process M-Pesa payment through PesaPal
-export const processMpesaPayment = async (
-  amount: string,
-  phoneNumber: string,
-  addTransaction: (transaction: Omit<Transaction, "id" | "timestamp">) => void
-): Promise<void> => {
-  try {
-    // Validate amount
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid deposit amount.",
-        variant: "destructive",
-      });
-      throw new Error("Invalid amount");
-    }
-
-    // Validate phone number
-    if (!validatePhoneNumber(phoneNumber)) {
-      toast({
-        title: "Invalid Phone Number",
-        description: "Please enter a valid M-Pesa phone number starting with 254.",
-        variant: "destructive",
-      });
-      throw new Error("Invalid phone number");
-    }
-
-    // Format amount to 2 decimal places
-    const formattedAmount = formatAmount(amount);
-
-    console.log("Processing M-Pesa payment with PesaPal:", {
-      amount: formattedAmount,
-      phoneNumber,
-      ...pesapalConfig,
-    });
-
-    // Generate a unique transaction ID
-    const transactionId = `TX-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-
-    // Add transaction with PENDING status initially
-    addTransaction({
-      amount: formattedAmount,
-      type: "DEPOSIT",
-      status: "PENDING",
-      details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
-    });
-
-    // In a real production implementation, we would make an API call to the PesaPal API
-    // Here we would construct and send the actual request to PesaPal's endpoints
-    
-    // Construct PesaPal payment request payload
-    const paymentPayload = {
-      id: transactionId,
-      amount: formattedAmount,
-      description: `Deposit to Vertex Trading Account`,
-      type: "MERCHANT",
-      reference: transactionId,
-      phone_number: phoneNumber,
-      email: "",
-      currency: "USD",
-      method: "MPESA",
-      consumer_key: pesapalConfig.consumerKey,
-      notification_id: `notify-${Date.now()}`,
-      callback_url: pesapalConfig.callbackUrl,
-      ipn_url: pesapalConfig.ipnListenerUrl,
-    };
-
-    // Show toast to inform user the payment request is being processed
-    toast({
-      title: "M-Pesa Request Initiated",
-      description: "Your request is being sent to PesaPal for processing. You should receive an M-Pesa prompt on your phone shortly.",
-    });
-
-    // Simulate a network request to PesaPal's API with intentional delay
-    // In production, this would be replaced with actual API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Show a toast to inform the user that the request has been sent
-    toast({
-      title: "M-Pesa Prompt Sent",
-      description: "Please check your phone and enter your PIN to complete the transaction. This may take a moment.",
-    });
-
-    // We'd normally wait for a callback or IPN from PesaPal to update the status
-    // For now, we'll simulate waiting for the PesaPal response
-    // In production, this would be handled by a webhook/callback endpoint
-  } catch (error) {
-    console.error("Error processing payment:", error);
-    toast({
-      title: "Payment Error",
-      description: "There was an error processing your payment. Please try again.",
-      variant: "destructive",
-    });
-    throw error;
-  }
 };
 
 // Process other payment methods (credit card, crypto)
@@ -164,5 +267,31 @@ export const processOtherPayment = (
       description: "There was an error processing your payment. Please try again.",
       variant: "destructive",
     });
+  }
+};
+
+// Check payment status
+export const checkPaymentStatus = async (orderTrackingId: string): Promise<string> => {
+  try {
+    const token = await getPesapalToken();
+    
+    const response = await axios.get(
+      `${pesapalConfig.apiUrl}/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    
+    if (response.data && response.data.status_code) {
+      return response.data.status_code;
+    }
+    
+    return "PENDING";
+  } catch (error) {
+    console.error("Error checking payment status:", error);
+    return "ERROR";
   }
 };

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Dialog,
@@ -16,7 +17,7 @@ import CardPaymentForm from "@/components/deposit/CardPaymentForm";
 import CryptoPaymentForm from "@/components/deposit/CryptoPaymentForm";
 import MpesaPaymentForm from "@/components/deposit/MpesaPaymentForm";
 import PaymentMethodSelector from "@/components/deposit/PaymentMethodSelector";
-import { processMpesaPayment, processOtherPayment } from "@/utils/payments";
+import { processMpesaPayment, processOtherPayment, validatePhoneNumber } from "@/utils/payments";
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -24,33 +25,43 @@ interface DepositModalProps {
 }
 
 const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
-  const { addTransaction } = useUser();
+  const { addTransaction, balance } = useUser();
   const [amount, setAmount] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("card");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!amount || parseFloat(amount) <= 0) {
+  const validateForm = (): boolean => {
+    // Validate amount
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       toast({
         title: "Invalid Amount",
         description: "Please enter a valid deposit amount.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
+    // Validate M-Pesa phone number if that's the selected payment method
     if (paymentMethod === "mpesa") {
-      if (!phoneNumber || phoneNumber.length < 10) {
+      if (!validatePhoneNumber(phoneNumber)) {
         toast({
           title: "Invalid Phone Number",
           description: "Please enter a valid M-Pesa phone number.",
           variant: "destructive",
         });
-        return;
+        return false;
       }
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
     }
 
     setIsLoading(true);
@@ -115,7 +126,12 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="amount">Amount (USD)</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="amount">Amount (USD)</Label>
+                <span className="text-sm text-muted-foreground">
+                  Balance: ${balance.toFixed(2)}
+                </span>
+              </div>
               <Input
                 id="amount"
                 type="number"

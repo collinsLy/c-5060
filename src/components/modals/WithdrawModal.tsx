@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/context/UserContext";
 import { toast } from "@/hooks/use-toast";
+import { formatAmount } from "@/utils/payments";
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -25,56 +26,112 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [withdrawalMethod, setWithdrawalMethod] = useState<string>("crypto");
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [bankName, setBankName] = useState<string>("");
+  const [accountNumber, setAccountNumber] = useState<string>("");
+  const [routingNumber, setRoutingNumber] = useState<string>("");
+  const [selectedCrypto, setSelectedCrypto] = useState<string>("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateForm = (): boolean => {
+    // Validate amount
     const withdrawalAmount = parseFloat(amount);
-    
-    if (!amount || withdrawalAmount <= 0) {
+    if (!amount || isNaN(withdrawalAmount) || withdrawalAmount <= 0) {
       toast({
         title: "Invalid Amount",
         description: "Please enter a valid withdrawal amount.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
     
+    // Check for sufficient funds
     if (withdrawalAmount > balance) {
       toast({
         title: "Insufficient Funds",
         description: "You don't have enough funds to withdraw this amount.",
         variant: "destructive",
       });
-      return;
+      return false;
+    }
+
+    // Validate wallet address for crypto
+    if (withdrawalMethod === "crypto") {
+      if (!walletAddress || walletAddress.trim() === "") {
+        toast({
+          title: "Missing Wallet Address",
+          description: "Please enter a wallet address for your withdrawal.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      if (!selectedCrypto) {
+        toast({
+          title: "Missing Cryptocurrency",
+          description: "Please select a cryptocurrency for your withdrawal.",
+          variant: "destructive",
+        });
+        return false;
+      }
     }
     
-    if (!walletAddress) {
-      toast({
-        title: "Missing Wallet Address",
-        description: "Please enter a wallet address for your withdrawal.",
-        variant: "destructive",
-      });
+    // Validate bank details for bank transfer
+    if (withdrawalMethod === "bank") {
+      if (!bankName || !accountNumber || !routingNumber) {
+        toast({
+          title: "Missing Bank Details",
+          description: "Please enter all required bank details.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
       return;
     }
     
     setIsLoading(true);
     
+    // Format amount to 2 decimal places
+    const withdrawalAmount = formatAmount(amount);
+    
     // Simulate processing
     await new Promise((resolve) => setTimeout(resolve, 1500));
     
-    // Add transaction to history
+    // Add transaction to history with appropriate details
+    let details = "";
+    if (withdrawalMethod === "crypto") {
+      details = `${selectedCrypto} to: ${walletAddress.substring(0, 8)}...`;
+    } else {
+      details = `Bank transfer to ${bankName} (Acct: ${accountNumber.substring(0, 4)}...)`;
+    }
+    
     addTransaction({
       amount: withdrawalAmount,
       type: "WITHDRAWAL",
       status: "COMPLETED",
-      details: `To: ${walletAddress.substring(0, 8)}...`,
+      details,
     });
     
+    // Reset form and close modal
     setIsLoading(false);
+    resetForm();
+    onClose();
+  };
+
+  const resetForm = () => {
     setAmount("");
     setWalletAddress("");
-    onClose();
+    setBankName("");
+    setAccountNumber("");
+    setRoutingNumber("");
+    setSelectedCrypto("");
   };
 
   const handleMax = () => {
@@ -82,7 +139,12 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={() => {
+      if (!isLoading) {
+        resetForm();
+        onClose();
+      }
+    }}>
       <DialogContent className="sm:max-w-[425px] bg-card text-foreground">
         <DialogHeader>
           <DialogTitle>Withdraw Funds</DialogTitle>
@@ -107,9 +169,11 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Enter amount"
                   min="1"
+                  max={balance.toString()}
                   step="0.01"
                   className="bg-background/50 pr-16"
                   required
+                  disabled={isLoading || balance <= 0}
                 />
                 <Button
                   type="button"
@@ -117,10 +181,16 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   size="sm"
                   className="absolute right-1 top-1 h-7"
                   onClick={handleMax}
+                  disabled={isLoading || balance <= 0}
                 >
                   Max
                 </Button>
               </div>
+              {balance <= 0 && (
+                <p className="text-sm text-destructive">
+                  You need to deposit funds before you can make a withdrawal.
+                </p>
+              )}
             </div>
             
             <div className="grid gap-2">
@@ -131,6 +201,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   variant={withdrawalMethod === "crypto" ? "default" : "outline"}
                   onClick={() => setWithdrawalMethod("crypto")}
                   className="flex-1"
+                  disabled={isLoading}
                 >
                   Crypto
                 </Button>
@@ -139,6 +210,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   variant={withdrawalMethod === "bank" ? "default" : "outline"}
                   onClick={() => setWithdrawalMethod("bank")}
                   className="flex-1"
+                  disabled={isLoading}
                 >
                   Bank Transfer
                 </Button>
@@ -156,6 +228,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   placeholder="Enter your wallet address"
                   className="bg-background/50"
                   required
+                  disabled={isLoading}
                 />
                 <div className="grid gap-2">
                   <Label htmlFor="crypto-type">Select Cryptocurrency</Label>
@@ -164,8 +237,10 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                       <Button
                         key={crypto}
                         type="button"
-                        variant="outline"
+                        variant={selectedCrypto === crypto ? "default" : "outline"}
                         className="bg-background/50"
+                        onClick={() => setSelectedCrypto(crypto)}
+                        disabled={isLoading}
                       >
                         {crypto}
                       </Button>
@@ -183,7 +258,10 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   type="text"
                   placeholder="Enter bank name"
                   className="bg-background/50"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
                   required
+                  disabled={isLoading}
                 />
                 <Label htmlFor="account-number">Account Number</Label>
                 <Input
@@ -191,7 +269,10 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   type="text"
                   placeholder="Enter account number"
                   className="bg-background/50"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
                   required
+                  disabled={isLoading}
                 />
                 <Label htmlFor="routing-number">Routing Number</Label>
                 <Input
@@ -199,16 +280,22 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
                   type="text"
                   placeholder="Enter routing number"
                   className="bg-background/50"
+                  value={routingNumber}
+                  onChange={(e) => setRoutingNumber(e.target.value)}
                   required
+                  disabled={isLoading}
                 />
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={() => {
+              resetForm();
+              onClose();
+            }} disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || balance <= 0}>
               {isLoading ? "Processing..." : "Withdraw Funds"}
             </Button>
           </DialogFooter>

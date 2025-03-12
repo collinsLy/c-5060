@@ -6,9 +6,25 @@ import { Transaction } from "@/context/UserContext";
 export const pesapalConfig = {
   consumerKey: "RfjTb7Vfoa7ULQ757RmojeFWC8crRbyX",
   consumerSecret: "hzBxk/UrOi+FKbiy0tiEOhe4UN4=",
-  domain: "https://vertex-trading.vercel.app", // Updated domain
-  ipnListenerUrl: "https://vertex-trading.vercel.app/api/payments/ipn", // Updated IPN URL
-  callbackUrl: "https://vertex-trading.vercel.app/dashboard", // Updated callback URL
+  domain: "https://vertex-trading.vercel.app", // Domain
+  ipnListenerUrl: "https://vertex-trading.vercel.app/api/payments/ipn", // IPN URL
+  callbackUrl: "https://vertex-trading.vercel.app/dashboard", // Callback URL
+};
+
+// Validate phone number format
+export const validatePhoneNumber = (phoneNumber: string): boolean => {
+  // Basic validation - should be at least 10 digits
+  const digits = phoneNumber.replace(/\D/g, '');
+  if (digits.length < 10) {
+    return false;
+  }
+  return true;
+};
+
+// Format amount to 2 decimal places
+export const formatAmount = (amount: string | number): number => {
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return parseFloat(numericAmount.toFixed(2));
 };
 
 // Process M-Pesa payment through PesaPal
@@ -18,8 +34,32 @@ export const processMpesaPayment = async (
   addTransaction: (transaction: Omit<Transaction, "id" | "timestamp">) => void
 ): Promise<void> => {
   try {
+    // Validate amount
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid deposit amount.",
+        variant: "destructive",
+      });
+      throw new Error("Invalid amount");
+    }
+
+    // Validate phone number
+    if (!validatePhoneNumber(phoneNumber)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a valid M-Pesa phone number.",
+        variant: "destructive",
+      });
+      throw new Error("Invalid phone number");
+    }
+
+    // Format amount to 2 decimal places
+    const formattedAmount = formatAmount(amount);
+
     console.log("Processing M-Pesa payment with PesaPal:", {
-      amount,
+      amount: formattedAmount,
       phoneNumber,
       ...pesapalConfig,
     });
@@ -27,7 +67,7 @@ export const processMpesaPayment = async (
     // Add transaction with PENDING status initially
     const transactionId = `order-${Date.now()}`;
     addTransaction({
-      amount: parseFloat(amount),
+      amount: formattedAmount,
       type: "DEPOSIT",
       status: "PENDING",
       details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
@@ -37,7 +77,7 @@ export const processMpesaPayment = async (
     // For this implementation, we'll simulate the API call with the following fields:
     const orderInfo = {
       id: transactionId,
-      amount: parseFloat(amount),
+      amount: formattedAmount,
       description: `Deposit to Vertex Trading Account`,
       payment_method: "mpesa",
       phone_number: phoneNumber,
@@ -60,14 +100,14 @@ export const processMpesaPayment = async (
     setTimeout(() => {
       toast({
         title: "Payment Successful",
-        description: `Your deposit of $${parseFloat(amount).toFixed(
+        description: `Your deposit of $${formattedAmount.toFixed(
           2
         )} via M-Pesa has been received.`,
       });
 
       // Update the transaction to COMPLETED
       addTransaction({
-        amount: parseFloat(amount),
+        amount: formattedAmount,
         type: "DEPOSIT",
         status: "COMPLETED",
         details: `Via M-Pesa (${phoneNumber}) - Ref: ${transactionId}`,
@@ -90,15 +130,38 @@ export const processOtherPayment = (
   paymentMethod: string,
   addTransaction: (transaction: Omit<Transaction, "id" | "timestamp">) => void
 ): void => {
-  addTransaction({
-    amount: parseFloat(amount),
-    type: "DEPOSIT",
-    status: "COMPLETED",
-    details: `Via ${paymentMethod === "card" ? "Credit Card" : "Crypto Wallet"}`,
-  });
+  try {
+    // Validate amount
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid deposit amount.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  toast({
-    title: "Deposit Successful",
-    description: "Your deposit has been processed successfully.",
-  });
+    // Format amount to 2 decimal places
+    const formattedAmount = formatAmount(amount);
+
+    addTransaction({
+      amount: formattedAmount,
+      type: "DEPOSIT",
+      status: "COMPLETED",
+      details: `Via ${paymentMethod === "card" ? "Credit Card" : "Crypto Wallet"}`,
+    });
+
+    toast({
+      title: "Deposit Successful",
+      description: `Your deposit of $${formattedAmount.toFixed(2)} has been processed successfully.`,
+    });
+  } catch (error) {
+    console.error("Error processing payment:", error);
+    toast({
+      title: "Payment Error",
+      description: "There was an error processing your payment. Please try again.",
+      variant: "destructive",
+    });
+  }
 };

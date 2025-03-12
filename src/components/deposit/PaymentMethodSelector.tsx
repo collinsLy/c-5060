@@ -25,6 +25,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           onClick={() => setPaymentMethod("card")}
           className="flex-1 flex items-center gap-2 justify-center"
           disabled={disabled}
+          aria-selected={paymentMethod === "card"}
         >
           <CreditCard className="h-4 w-4" />
           Credit Card
@@ -35,6 +36,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           onClick={() => setPaymentMethod("crypto")}
           className="flex-1 flex items-center gap-2 justify-center"
           disabled={disabled}
+          aria-selected={paymentMethod === "crypto"}
         >
           <Wallet className="h-4 w-4" />
           Crypto
@@ -45,6 +47,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           onClick={() => setPaymentMethod("mpesa")}
           className="flex-1 flex items-center gap-2 justify-center"
           disabled={disabled}
+          aria-selected={paymentMethod === "mpesa"}
         >
           <Phone className="h-4 w-4" />
           M-Pesa

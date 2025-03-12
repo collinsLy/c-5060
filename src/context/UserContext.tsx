@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -50,7 +51,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ 
   children 
 }) => {
-  const [balance, setBalance] = useState<number>(1000);
+  const [balance, setBalance] = useState<number>(0); // Initialize with 0 balance
   const [tradeHistory, setTradeHistory] = useState<TradeHistory[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [username, setUsername] = useState<string>("kellyhunch");
@@ -85,7 +86,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("vertex_username");
     
     // Reset state
-    setBalance(1000);
+    setBalance(0); // Reset to 0 instead of 1000
     setTradeHistory([]);
     setTransactions([]);
     setUsername("kellyhunch");
@@ -99,7 +100,39 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
+  const validateTransaction = (transaction: Omit<Transaction, "id" | "timestamp">): boolean => {
+    // Ensure amount is a valid number
+    if (isNaN(transaction.amount) || transaction.amount <= 0) {
+      toast({
+        title: "Invalid Transaction",
+        description: "Transaction amount must be greater than 0.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Format to 2 decimal places
+    transaction.amount = parseFloat(transaction.amount.toFixed(2));
+
+    // Prevent negative balances for withdrawals
+    if (transaction.type === "WITHDRAWAL" && transaction.amount > balance) {
+      toast({
+        title: "Insufficient Funds",
+        description: "You don't have enough funds to complete this withdrawal.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const addTransaction = (transaction: Omit<Transaction, "id" | "timestamp">) => {
+    // Validate transaction before processing
+    if (transaction.status === "COMPLETED" && !validateTransaction(transaction)) {
+      return;
+    }
+
     const newTransaction = {
       ...transaction,
       id: `tx-${Date.now()}-${Math.random().toString(36).substring(7)}`,
@@ -111,13 +144,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     // Update balance if transaction is completed
     if (transaction.status === "COMPLETED") {
       if (transaction.type === "DEPOSIT") {
-        setBalance((prev) => prev + transaction.amount);
+        setBalance((prev) => {
+          const newBalance = prev + transaction.amount;
+          return parseFloat(newBalance.toFixed(2)); // Ensure 2 decimal places
+        });
         toast({
           title: "Deposit Successful",
           description: `$${transaction.amount.toFixed(2)} has been added to your account.`,
         });
       } else if (transaction.type === "WITHDRAWAL") {
-        setBalance((prev) => prev - transaction.amount);
+        setBalance((prev) => {
+          const newBalance = prev - transaction.amount;
+          return parseFloat(newBalance.toFixed(2)); // Ensure 2 decimal places
+        });
         toast({
           title: "Withdrawal Successful",
           description: `$${transaction.amount.toFixed(2)} has been withdrawn from your account.`,
@@ -134,6 +173,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     profit: number,
     type: TradeType
   ) => {
+    // Format stake to 2 decimal places
+    stake = parseFloat(stake.toFixed(2));
+
     // Check if user has enough balance
     if (stake > balance) {
       toast({
@@ -145,7 +187,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     // Deduct stake from balance
-    setBalance((prev) => prev - stake);
+    setBalance((prev) => parseFloat((prev - stake).toFixed(2)));
     
     toast({
       title: "Trade Started",
@@ -158,7 +200,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       
       // Simulate trade result (win/loss) - 50% chance of winning for demo
       const isWin = Math.random() > 0.5;
-      const profitAmount = isWin ? (stake * profit / 100) : 0;
+      const profitAmount = isWin ? parseFloat((stake * profit / 100).toFixed(2)) : 0;
       
       // Create trade history entry
       const tradeResult: TradeHistory = {
@@ -176,7 +218,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       
       // Update balance if win
       if (isWin) {
-        setBalance((prev) => prev + stake + profitAmount);
+        setBalance((prev) => parseFloat((prev + stake + profitAmount).toFixed(2)));
         toast({
           title: "Trade Successful!",
           description: `You won $${profitAmount.toFixed(2)} on ${pair}!`,
@@ -191,7 +233,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (error) {
       // Refund stake in case of error
-      setBalance((prev) => prev + stake);
+      setBalance((prev) => parseFloat((prev + stake).toFixed(2)));
       toast({
         title: "Trade Error",
         description: "An error occurred while executing your trade.",

@@ -144,14 +144,13 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     setTransactionStatus("Processing payment...");
     
     try {
+      // Prepare the details object
+      const details = paymentMethod === 'mpesa' 
+        ? { phoneNumber, email } 
+        : { email };
+      
       // Use unified payment processing function
-      const result = await processPayment(
-        amount, 
-        paymentMethod, 
-        phoneNumber, 
-        email, 
-        addTransaction
-      );
+      const result = await processPayment(amount, paymentMethod, details);
       
       if (result.error) {
         setTransactionStatus(`Error: ${result.error}`);
@@ -161,7 +160,19 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
         setRedirectUrl(result.redirectUrl);
         setTransactionStatus("Redirecting to Pesapal payment gateway...");
       } else {
-        // Direct success (unlikely with Pesapal integration, but kept for compatibility)
+        // Direct success
+        addTransaction({
+          amount: parseFloat(amount),
+          type: "DEPOSIT",
+          status: "COMPLETED",
+          details: `${paymentMethod} payment completed - Ref: ${result.transactionId}`,
+        });
+        
+        toast({
+          title: "Payment Successful",
+          description: "Your deposit has been completed successfully.",
+        });
+        
         setAmount("");
         setTransactionStatus("");
         onClose();

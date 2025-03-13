@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -258,8 +259,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         id: data.id,
         timestamp: new Date(data.timestamp),
         amount: data.amount,
-        type: data.type,
-        status: data.status,
+        type: data.type as "DEPOSIT" | "WITHDRAWAL",
+        status: data.status as "COMPLETED" | "PENDING" | "FAILED",
         details: data.details
       };
 

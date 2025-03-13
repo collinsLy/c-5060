@@ -75,7 +75,7 @@ const MpesaPaymentForm: React.FC<MpesaPaymentFormProps> = ({
       <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs">
         <p className="font-medium">Important:</p>
         <p>Keep your phone nearby. You'll be redirected to the Pesapal payment gateway to complete your payment.</p>
-        <p className="mt-1">This payment is processed securely through PesaPal.</p>
+        <p className="mt-1">This payment is processed securely through Pesapal.</p>
       </div>
     </div>
   );

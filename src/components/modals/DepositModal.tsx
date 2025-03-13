@@ -18,9 +18,7 @@ import CryptoPaymentForm from "@/components/deposit/CryptoPaymentForm";
 import MpesaPaymentForm from "@/components/deposit/MpesaPaymentForm";
 import PaymentMethodSelector from "@/components/deposit/PaymentMethodSelector";
 import { 
-  processMpesaPayment, 
-  processOtherPayment, 
-  validatePhoneNumber, 
+  processPayment,
   checkPaymentStatus 
 } from "@/utils/payments";
 
@@ -67,11 +65,16 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
             });
             
             // Update transaction status to COMPLETED
+            const paymentMethodDisplay = 
+              paymentMethod === "mpesa" ? `M-Pesa` :
+              paymentMethod === "card" ? "Credit Card" : 
+              paymentMethod === "crypto" ? "Crypto Wallet" : paymentMethod;
+              
             addTransaction({
               amount: parseFloat(amount),
               type: "DEPOSIT",
               status: "COMPLETED",
-              details: `M-Pesa payment completed - Ref: ${orderTrackingId}`,
+              details: `${paymentMethodDisplay} payment completed - Ref: ${orderTrackingId}`,
             });
             
             setIsLoading(false);
@@ -104,7 +107,7 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
         clearInterval(statusCheckInterval);
       }
     };
-  }, [orderTrackingId, amount, addTransaction, onClose]);
+  }, [orderTrackingId, amount, addTransaction, onClose, paymentMethod]);
 
   const validateForm = (): boolean => {
     // Validate amount
@@ -117,16 +120,14 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
       return false;
     }
 
-    // Validate M-Pesa phone number if that's the selected payment method
-    if (paymentMethod === "mpesa") {
-      if (!validatePhoneNumber(phoneNumber)) {
-        toast({
-          title: "Invalid Phone Number",
-          description: "Please enter a valid M-Pesa phone number starting with 254.",
-          variant: "destructive",
-        });
-        return false;
-      }
+    // Payment method specific validations
+    if (paymentMethod === "mpesa" && !phoneNumber) {
+      toast({
+        title: "Missing Phone Number",
+        description: "Please enter your M-Pesa phone number.",
+        variant: "destructive",
+      });
+      return false;
     }
 
     return true;
@@ -143,19 +144,24 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     setTransactionStatus("Processing payment...");
     
     try {
-      if (paymentMethod === "mpesa") {
-        const result = await processMpesaPayment(amount, phoneNumber, email, addTransaction);
-        
-        if (result.error) {
-          setTransactionStatus(`Error: ${result.error}`);
-          setIsLoading(false);
-        } else if (result.redirectUrl && result.orderTrackingId) {
-          setOrderTrackingId(result.orderTrackingId);
-          setRedirectUrl(result.redirectUrl);
-          setTransactionStatus("Redirecting to Pesapal payment gateway...");
-        }
+      // Use unified payment processing function
+      const result = await processPayment(
+        amount, 
+        paymentMethod, 
+        phoneNumber, 
+        email, 
+        addTransaction
+      );
+      
+      if (result.error) {
+        setTransactionStatus(`Error: ${result.error}`);
+        setIsLoading(false);
+      } else if (result.redirectUrl && result.orderTrackingId) {
+        setOrderTrackingId(result.orderTrackingId);
+        setRedirectUrl(result.redirectUrl);
+        setTransactionStatus("Redirecting to Pesapal payment gateway...");
       } else {
-        processOtherPayment(amount, paymentMethod, addTransaction);
+        // Direct success (unlikely with Pesapal integration, but kept for compatibility)
         setAmount("");
         setTransactionStatus("");
         onClose();

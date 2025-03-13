@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -65,7 +64,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   const [username, setUsername] = useState<string>("");
   const navigate = useNavigate();
 
-  // Load session and user data
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
@@ -83,7 +81,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     );
 
-    // Get initial session
     const initializeAuth = async () => {
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       setSession(initialSession);
@@ -105,10 +102,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
-  // Load user data from database
   const loadUserData = async (userId: string) => {
     try {
-      // Get profile data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('username, balance')
@@ -122,7 +117,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         setBalance(profileData.balance || 0);
       }
 
-      // Get trade history
       const { data: tradeData, error: tradeError } = await supabase
         .from('trade_history')
         .select('*')
@@ -144,7 +138,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         })));
       }
 
-      // Get transactions
       const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
         .select('*')
@@ -173,7 +166,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Reset user data
   const resetUserData = () => {
     setBalance(0);
     setTradeHistory([]);
@@ -181,7 +173,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     setUsername("");
   };
 
-  // Sign out function
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -201,7 +192,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Update profile function
   const updateProfile = async (updates: { username?: string; balance?: number }) => {
     try {
       if (!user) throw new Error("User not authenticated");
@@ -219,7 +209,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const validateTransaction = (transaction: Omit<Transaction, "id" | "timestamp">): boolean => {
-    // Ensure amount is a valid number
     if (isNaN(transaction.amount) || transaction.amount <= 0) {
       toast({
         title: "Invalid Transaction",
@@ -229,10 +218,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       return false;
     }
 
-    // Format to 2 decimal places
     transaction.amount = parseFloat(transaction.amount.toFixed(2));
 
-    // Prevent negative balances for withdrawals
     if (transaction.type === "WITHDRAWAL" && transaction.amount > balance) {
       toast({
         title: "Insufficient Funds",
@@ -246,7 +233,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addTransaction = async (transaction: Omit<Transaction, "id" | "timestamp">) => {
-    // Validate transaction before processing
     if (transaction.status === "COMPLETED" && !validateTransaction(transaction)) {
       return;
     }
@@ -254,7 +240,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       if (!user) throw new Error("User not authenticated");
 
-      // Insert into database
       const { data, error } = await supabase
         .from('transactions')
         .insert({
@@ -269,7 +254,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (error) throw error;
 
-      // Add to local state
       const newTransaction: Transaction = {
         id: data.id,
         timestamp: new Date(data.timestamp),
@@ -281,7 +265,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setTransactions((prev) => [newTransaction, ...prev]);
 
-      // Update balance if transaction is completed
       if (transaction.status === "COMPLETED") {
         let newBalance;
         if (transaction.type === "DEPOSIT") {
@@ -321,10 +304,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     profit: number,
     type: TradeType
   ) => {
-    // Format stake to 2 decimal places
     stake = parseFloat(stake.toFixed(2));
 
-    // Check if user has enough balance
     if (stake > balance) {
       toast({
         title: "Insufficient Balance",
@@ -337,7 +318,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       if (!user) throw new Error("User not authenticated");
 
-      // Deduct stake from balance
       const newBalance = parseFloat((balance - stake).toFixed(2));
       setBalance(newBalance);
       await updateProfile({ balance: newBalance });
@@ -347,14 +327,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         description: `Trading ${pair} with $${stake.toFixed(2)}`,
       });
 
-      // Simulate trade execution with the given duration
       await new Promise((resolve) => setTimeout(resolve, duration * 1000));
       
-      // Simulate trade result (win/loss) - 50% chance of winning for demo
       const isWin = Math.random() > 0.5;
       const profitAmount = isWin ? parseFloat((stake * profit / 100).toFixed(2)) : 0;
       
-      // Create trade history entry in database
       const { data: tradeData, error: tradeError } = await supabase
         .from('trade_history')
         .insert({
@@ -371,7 +348,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (tradeError) throw tradeError;
       
-      // Add to local state
       const tradeResult: TradeHistory = {
         id: tradeData.id,
         timestamp: new Date(tradeData.timestamp),
@@ -385,7 +361,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
       
       setTradeHistory((prev) => [tradeResult, ...prev]);
       
-      // Update balance if win
       if (isWin) {
         const updatedBalance = parseFloat((newBalance + stake + profitAmount).toFixed(2));
         setBalance(updatedBalance);
@@ -404,7 +379,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       }
     } catch (error: any) {
-      // Refund stake in case of error
       const refundBalance = parseFloat((balance).toFixed(2));
       setBalance(refundBalance);
       await updateProfile({ balance: refundBalance });

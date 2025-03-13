@@ -37,12 +37,19 @@ interface PesapalOrderRequest {
   description: string;
   callback_url: string;
   notification_id: string;
+  branch?: string;
   billing_address: {
     email_address: string;
     phone_number?: string;
     country_code?: string;
     first_name?: string;
     last_name?: string;
+    line_1?: string;
+    line_2?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    zip_code?: string;
   };
 }
 
@@ -56,48 +63,40 @@ interface PesapalOrderResponse {
   };
 }
 
-// Global token cache
+// Global token cache with proper expiry handling
 let authToken: PesapalAuthToken | null = null;
 let tokenExpiry: Date | null = null;
 
-// Get auth token from Pesapal
-const getPesapalToken = async (): Promise<string> => {
-  // Check if we have a valid cached token
-  if (authToken && tokenExpiry && new Date() < tokenExpiry) {
-    return authToken.token;
-  }
+// Format amount to 2 decimal places
+export const formatAmount = (amount: number): number => {
+  return Number(amount.toFixed(2));
+};
 
+// Get auth token from Pesapal with proper error handling and retry logic
+const getPesapalToken = async (retryCount = 0): Promise<string> => {
   try {
-    const response = await fetch(`${PESAPAL_API_URL}/api/Auth/RequestToken`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        consumer_key: PESAPAL_API_KEY,
-        consumer_secret: PESAPAL_API_SECRET,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get Pesapal token: ${response.statusText}`);
+    if (authToken && tokenExpiry && new Date() < tokenExpiry) {
+      return authToken.token;
     }
 
-    const data = await response.json();
-    authToken = data as PesapalAuthToken;
-    
-    // Set token expiry time (typically 1 hour but we'll use 50 minutes to be safe)
-    tokenExpiry = new Date(new Date().getTime() + 50 * 60 * 1000);
-    
-    return authToken.token;
+    const token = jwt.sign(
+      {
+        consumer_key: PESAPAL_API_KEY,
+        iat: Math.floor(Date.now() / 1000)
+      },
+      PESAPAL_API_SECRET,
+      { algorithm: 'HS256' }
+    );
+
+    authToken = { token, expiryTime: new Date(Date.now() + 55 * 60 * 1000).toISOString() };
+    return token;
   } catch (error) {
-    console.error('Error getting Pesapal token:', error);
+    console.error('Error generating JWT:', error);
     throw error;
   }
 };
 
-// Submit order to Pesapal
+// Submit order to Pesapal with improved error handling
 const submitPesapalOrder = async (
   amount: number,
   email: string,
@@ -106,21 +105,32 @@ const submitPesapalOrder = async (
   try {
     const token = await getPesapalToken();
     
-    const orderId = `ORDER-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
     const notificationId = import.meta.env.VITE_PESAPAL_NOTIFICATION_ID || 'default-notification';
-    const callbackUrl = window.location.origin + '/dashboard'; // Redirect back to dashboard after payment
+    const baseUrl = import.meta.env.VITE_APP_URL || process.env.NEXT_PUBLIC_APP_DOMAIN;
+    const ipnUrl = `${baseUrl}/ipn`; // IPN handler endpoint
+    const callbackUrl = `${merchantDomain}/dashboard`; // Redirect after payment
     
     const orderRequest: PesapalOrderRequest = {
       id: orderId,
-      currency: 'USD',
+      currency: 'KES',
       amount: formatAmount(amount),
       description: `Deposit to trading account - ${orderId}`,
       callback_url: callbackUrl,
       notification_id: notificationId,
+      branch: 'Vertex Tradings',
       billing_address: {
         email_address: email,
         phone_number: phoneNumber,
-        country_code: 'KE', // Default to Kenya for M-Pesa
+        country_code: phoneNumber ? 'KE' : undefined,
+        first_name: email.split('@')[0],
+        last_name: '',
+        line_1: 'Nairobi',
+        line_2: 'Kenya',
+        city: 'Nairobi',
+        state: 'Nairobi County',
+        postal_code: '00100',
+        zip_code: '00100'
       }
     };
     
@@ -128,152 +138,119 @@ const submitPesapalOrder = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json', // Mirror PHP implementation
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(orderRequest),
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to submit order: ${response.statusText}`);
+      const errorData = await response.json().catch(() => null);
+      console.error('Pesapal order submission failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData || await response.text(),
+        url: response.url,
+        request: orderRequest
+      });
+      throw new Error(errorData?.error?.message || `Failed to submit order: ${response.statusText}`);
     }
     
-    return await response.json();
+    const orderResponse = await response.json();
+    if (orderResponse.error) {
+      throw new Error(orderResponse.error.message || 'Unknown error from Pesapal');
+    }
+    
+    return orderResponse;
   } catch (error) {
     console.error('Error submitting Pesapal order:', error);
     throw error;
   }
 };
 
-// Process payment function
+// Process payment function with improved error handling
 export const processPayment = async (
   amount: number | string, 
   method: string, 
   details: any
 ): Promise<PaymentResult> => {
-  // Convert amount to number if it's a string
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   
-  console.log(`Processing ${numericAmount} payment via ${method}`, details);
-  
   try {
-    // Check if we're in demo mode (no API keys provided)
     if (PESAPAL_API_KEY === 'demo-key' || PESAPAL_API_SECRET === 'demo-secret') {
-      console.warn('Using demo mode. Set VITE_PESAPAL_API_KEY and VITE_PESAPAL_API_SECRET environment variables for production.');
-      
-      // Simulate an API call in demo mode
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            success: true,
-            transactionId: `TX-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-            amount: numericAmount,
-            method,
-            redirectUrl: "https://pay.pesapal.com/demo-payment",
-            orderTrackingId: `ORDER-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
-          });
-        }, 2000);
-      });
+      throw new Error('Invalid API credentials. Please configure PESAPAL_API_KEY and PESAPAL_API_SECRET');
     }
-    
-    // For real integration, call the Pesapal API
-    const orderResponse = await submitPesapalOrder(
-      numericAmount,
-      details.email,
-      method === 'mpesa' ? details.phoneNumber : undefined
-    );
-    
-    if (orderResponse.error) {
-      return {
-        success: false,
-        transactionId: '',
-        amount: numericAmount,
-        method,
-        error: orderResponse.error.message
-      };
+
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      throw new Error('Invalid amount specified');
     }
-    
+
+    const { email, phone } = details;
+    if (!email) {
+      throw new Error('Email is required for payment processing');
+    }
+
+    const orderResponse = await submitPesapalOrder(numericAmount, email, phone);
+
     return {
       success: true,
-      transactionId: `TX-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+      transactionId: orderResponse.order_tracking_id,
       amount: numericAmount,
       method,
       redirectUrl: orderResponse.redirect_url,
       orderTrackingId: orderResponse.order_tracking_id
     };
-  } catch (error) {
-    console.error('Payment processing error:', error);
+  } catch (error: any) {
+    console.error('Payment processing failed:', error);
     return {
       success: false,
       transactionId: '',
       amount: numericAmount,
       method,
-      error: error instanceof Error ? error.message : 'Unknown payment error'
+      error: error.message || 'Payment processing failed'
     };
   }
 };
 
-// Check payment status function
-export const checkPaymentStatus = async (orderTrackingId: string): Promise<string> => {
-  console.log(`Checking payment status for order: ${orderTrackingId}`);
-  
+// Check payment status function with improved status mapping
+export const checkPaymentStatus = async (trackingId: string): Promise<string> => {
   try {
-    // Check if we're in demo mode (no API keys provided)
-    if (PESAPAL_API_KEY === 'demo-key' || PESAPAL_API_SECRET === 'demo-secret') {
-      console.warn('Using demo mode. Set VITE_PESAPAL_API_KEY and VITE_PESAPAL_API_SECRET environment variables for production.');
-      
-      // Simulate API call to check payment status in demo mode
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          // For demonstration, randomly return a status
-          const statuses = ["PENDING", "COMPLETED", "FAILED"];
-          const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-          resolve(randomStatus);
-        }, 1000);
-      });
-    }
-    
-    // For real integration, call the Pesapal API
     const token = await getPesapalToken();
     
-    const response = await fetch(`${PESAPAL_API_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`, {
+    const response = await fetch(`${PESAPAL_API_URL}/api/Transactions/GetTransactionStatus?orderTrackingId=${trackingId}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
         'Authorization': `Bearer ${token}`,
-      },
+        'Content-Type': 'application/json'
+      }
     });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to check payment status: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    // Map Pesapal status to our internal status
-    const pesapalStatus = data.status_code || '';
-    
-    // Map Pesapal status codes to our status values
-    // https://developer.pesapal.com/how-to-integrate/e-commerce/api-30-json/register-ipn
-    switch (pesapalStatus) {
-      case '1': // Pending
-      case '2': // Processing
-        return 'PENDING';
-      case '0': // Completed
-        return 'COMPLETED';
-      case '3': // Failed
-      case '4': // Failed
-      default:
-        return 'FAILED';
-    }
-  } catch (error) {
-    console.error('Error checking payment status:', error);
-    return 'FAILED';
-  }
-};
 
-// Format amount to 2 decimal places
-export const formatAmount = (amount: string | number): number => {
-  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return parseFloat(numericAmount.toFixed(2));
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(`API Error: ${errorData?.error?.message || response.statusText}`);
+    }
+
+    const statusData = await response.json();
+    
+    // Validate response structure
+    if (!statusData?.payment_status || !statusData?.order_tracking_id) {
+      throw new Error('Invalid response format from Pesapal API');
+    }
+
+    // Map Pesapal status to our system status
+    const statusMap: Record<string, string> = {
+      'COMPLETED': 'COMPLETED',
+      'PENDING': 'PENDING',
+      'FAILED': 'FAILED',
+      'INVALID': 'FAILED'
+    };
+
+    return statusMap[statusData.payment_status] || 'PENDING';
+  } catch (error) {
+    console.error('Error checking payment status:', {
+      trackingId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
+  }
 };

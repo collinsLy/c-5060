@@ -26,39 +26,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const navigate = useNavigate();
 
   useEffect(() => {
+    let mounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
-        setIsLoading(true);
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (currentSession?.user) {
-          await loadUserData(currentSession.user.id);
-        } else {
+        if (!mounted) return;
+
+        try {
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+          
+          if (currentSession?.user) {
+            await loadUserData(currentSession.user.id);
+          } else {
+            resetUserData();
+          }
+        } catch (error) {
+          console.error("Error in auth state change:", error);
           resetUserData();
+        } finally {
+          if (mounted) {
+            setIsLoading(false);
+          }
         }
-        
-        setIsLoading(false);
       }
     );
 
     const initializeAuth = async () => {
-      const { data: { session: initialSession } } = await supabase.auth.getSession();
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      
-      if (initialSession?.user) {
-        await loadUserData(initialSession.user.id);
-      } else {
+      if (!mounted) return;
+
+      try {
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
+        
+        if (mounted) {
+          setSession(initialSession);
+          setUser(initialSession?.user ?? null);
+          
+          if (initialSession?.user) {
+            await loadUserData(initialSession.user.id);
+          } else {
+            resetUserData();
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
         resetUserData();
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
-      
-      setIsLoading(false);
     };
 
     initializeAuth();
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);

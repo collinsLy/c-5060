@@ -14,12 +14,24 @@ import { useUser } from "@/context/UserContext";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { session } = useUser();
+  const { session, isLoading } = useUser();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // If user is already logged in, redirect to dashboard
   if (session) {
@@ -38,7 +50,7 @@ const Auth = () => {
       return;
     }
     
-    setIsLoading(true);
+    setFormLoading(true);
     
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -68,7 +80,7 @@ const Auth = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -84,7 +96,7 @@ const Auth = () => {
       return;
     }
     
-    setIsLoading(true);
+    setFormLoading(true);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -108,7 +120,7 @@ const Auth = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -234,8 +246,8 @@ const Auth = () => {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? "Creating account..." : "Create Account"}
+                    <Button type="submit" className="w-full" disabled={formLoading}>
+                      {formLoading ? "Creating account..." : "Create Account"}
                     </Button>
                   </CardFooter>
                 </form>

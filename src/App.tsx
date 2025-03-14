@@ -17,6 +17,8 @@ import Demo from "./pages/Demo";
 import More from "./pages/More";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
+import Deposit from "./pages/Deposit";
+import Withdraw from "./pages/Withdraw";
 
 // Create a new QueryClient with default settings
 const queryClient = new QueryClient({
@@ -96,6 +98,16 @@ const AppRoutes = () => {
       <Route path="/settings" element={
         <ProtectedRoute>
           <Settings />
+        </ProtectedRoute>
+      } />
+      <Route path="/deposit" element={
+        <ProtectedRoute>
+          <Deposit />
+        </ProtectedRoute>
+      } />
+      <Route path="/withdraw" element={
+        <ProtectedRoute>
+          <Withdraw />
         </ProtectedRoute>
       } />
     </Routes>

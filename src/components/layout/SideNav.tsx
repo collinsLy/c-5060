@@ -5,6 +5,7 @@ import {
   Bot,
   User,
   Wallet,
+  Download,
   History,
   Settings,
   HelpCircle,
@@ -28,6 +29,8 @@ const SideNav = () => {
 
   const navItems = [
     { path: "/dashboard", icon: <Home className="h-5 w-5" />, label: "Dashboard" },
+    { path: "/deposit", icon: <Wallet className="h-5 w-5" />, label: "Deposit" },
+    { path: "/withdraw", icon: <Download className="h-5 w-5" />, label: "Withdraw" },
     { path: "/trade", icon: <BarChart2 className="h-5 w-5" />, label: "Trade" },
     { path: "/bots", icon: <Bot className="h-5 w-5" />, label: "Bots" },
     { path: "/chart", icon: <Medal className="h-5 w-5" />, label: "Chart" },

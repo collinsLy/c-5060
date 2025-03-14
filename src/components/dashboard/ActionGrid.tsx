@@ -10,27 +10,22 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import DashboardActionButton from "./DashboardActionButton";
-import { useState } from "react";
-import DepositModal from "../modals/DepositModal";
-import WithdrawModal from "../modals/WithdrawModal";
 import { useNavigate } from "react-router-dom";
 
 const ActionGrid = () => {
   const navigate = useNavigate();
-  const [depositModalOpen, setDepositModalOpen] = useState(false);
-  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <DashboardActionButton
         icon={<Wallet className="w-6 h-6" />}
         label="Deposit"
-        onClick={() => setDepositModalOpen(true)}
+        onClick={() => navigate("/deposit")}
       />
       <DashboardActionButton
         icon={<Download className="w-6 h-6" />}
         label="Withdraw"
-        onClick={() => setWithdrawModalOpen(true)}
+        onClick={() => navigate("/withdraw")}
       />
       <DashboardActionButton
         icon={<Bot className="w-6 h-6" />}
@@ -61,15 +56,6 @@ const ActionGrid = () => {
         icon={<MoreHorizontal className="w-6 h-6" />}
         label="More"
         onClick={() => navigate("/more")}
-      />
-
-      <DepositModal
-        isOpen={depositModalOpen}
-        onClose={() => setDepositModalOpen(false)}
-      />
-      <WithdrawModal
-        isOpen={withdrawModalOpen}
-        onClose={() => setWithdrawModalOpen(false)}
       />
     </div>
   );

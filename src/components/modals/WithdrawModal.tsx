@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Dialog,
@@ -20,7 +21,7 @@ interface WithdrawModalProps {
 }
 
 const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
-  const { addTransaction, updateBalance, balance } = useUser();
+  const { addTransaction, setBalance, balance } = useUser();
   const [amount, setAmount] = useState<string>("");
   const [account, setAccount] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -79,12 +80,12 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
       // Update user balance and add transaction record
       addTransaction({
         amount: parsedAmount, // Use the parsed number value
-        type: "WITHDRAW",
+        type: "WITHDRAWAL",
         status: "COMPLETED",
         details: `Withdrawal to ${account} completed`,
       });
       
-      updateBalance(balance - parsedAmount);
+      setBalance(balance - parsedAmount);
       
       toast({
         title: "Withdrawal Successful",

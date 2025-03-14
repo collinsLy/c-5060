@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   Dialog,
@@ -21,20 +20,16 @@ interface WithdrawModalProps {
 }
 
 const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
-  const { balance, addTransaction } = useUser();
+  const { addTransaction, updateBalance, balance } = useUser();
   const [amount, setAmount] = useState<string>("");
-  const [walletAddress, setWalletAddress] = useState<string>("");
-  const [withdrawalMethod, setWithdrawalMethod] = useState<string>("crypto");
+  const [account, setAccount] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [bankName, setBankName] = useState<string>("");
-  const [accountNumber, setAccountNumber] = useState<string>("");
-  const [routingNumber, setRoutingNumber] = useState<string>("");
-  const [selectedCrypto, setSelectedCrypto] = useState<string>("");
+
+  // When using formatAmount, make sure to pass a number
+  const formattedAmount = formatAmount(parseFloat(amount) || 0);
 
   const validateForm = (): boolean => {
-    // Validate amount
-    const withdrawalAmount = parseFloat(amount);
-    if (!amount || isNaN(withdrawalAmount) || withdrawalAmount <= 0) {
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       toast({
         title: "Invalid Amount",
         description: "Please enter a valid withdrawal amount.",
@@ -42,109 +37,77 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
       });
       return false;
     }
-    
-    // Check for sufficient funds
-    if (withdrawalAmount > balance) {
+
+    if (parseFloat(amount) > balance) {
       toast({
-        title: "Insufficient Funds",
-        description: "You don't have enough funds to withdraw this amount.",
+        title: "Insufficient Balance",
+        description: "You do not have sufficient balance to make this withdrawal.",
         variant: "destructive",
       });
       return false;
     }
 
-    // Validate wallet address for crypto
-    if (withdrawalMethod === "crypto") {
-      if (!walletAddress || walletAddress.trim() === "") {
-        toast({
-          title: "Missing Wallet Address",
-          description: "Please enter a wallet address for your withdrawal.",
-          variant: "destructive",
-        });
-        return false;
-      }
+    if (!account) {
+      toast({
+        title: "Missing Account Details",
+        description: "Please enter your withdrawal account details.",
+        variant: "destructive",
+      });
+      return false;
+    }
 
-      if (!selectedCrypto) {
-        toast({
-          title: "Missing Cryptocurrency",
-          description: "Please select a cryptocurrency for your withdrawal.",
-          variant: "destructive",
-        });
-        return false;
-      }
-    }
-    
-    // Validate bank details for bank transfer
-    if (withdrawalMethod === "bank") {
-      if (!bankName || !accountNumber || !routingNumber) {
-        toast({
-          title: "Missing Bank Details",
-          description: "Please enter all required bank details.",
-          variant: "destructive",
-        });
-        return false;
-      }
-    }
-    
     return true;
   };
 
+  // Make sure to convert string amount to number when processing withdrawal
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
-    
+
     setIsLoading(true);
     
-    // Format amount to 2 decimal places
-    const withdrawalAmount = formatAmount(amount);
-    
-    // Simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    // Add transaction to history with appropriate details
-    let details = "";
-    if (withdrawalMethod === "crypto") {
-      details = `${selectedCrypto} to: ${walletAddress.substring(0, 8)}...`;
-    } else {
-      details = `Bank transfer to ${bankName} (Acct: ${accountNumber.substring(0, 4)}...)`;
+    try {
+      // Make sure to convert amount to number
+      const parsedAmount = parseFloat(amount);
+      
+      // Simulate withdrawal processing (replace with actual API call)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      
+      // Update user balance and add transaction record
+      addTransaction({
+        amount: parsedAmount, // Use the parsed number value
+        type: "WITHDRAW",
+        status: "COMPLETED",
+        details: `Withdrawal to ${account} completed`,
+      });
+      
+      updateBalance(balance - parsedAmount);
+      
+      toast({
+        title: "Withdrawal Successful",
+        description: `Withdrawal of ${formattedAmount} to ${account} completed.`,
+      });
+      
+      setAmount("");
+      setAccount("");
+      onClose();
+    } catch (error) {
+      console.error("Withdrawal error:", error);
+      toast({
+        title: "Withdrawal Failed",
+        description: "There was an error processing your withdrawal. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    addTransaction({
-      amount: withdrawalAmount,
-      type: "WITHDRAWAL",
-      status: "COMPLETED",
-      details,
-    });
-    
-    // Reset form and close modal
-    setIsLoading(false);
-    resetForm();
-    onClose();
-  };
-
-  const resetForm = () => {
-    setAmount("");
-    setWalletAddress("");
-    setBankName("");
-    setAccountNumber("");
-    setRoutingNumber("");
-    setSelectedCrypto("");
-  };
-
-  const handleMax = () => {
-    setAmount(balance.toString());
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {
-      if (!isLoading) {
-        resetForm();
-        onClose();
-      }
-    }}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px] bg-card text-foreground">
         <DialogHeader>
           <DialogTitle>Withdraw Funds</DialogTitle>
@@ -155,147 +118,44 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <div className="flex items-center justify-between">
+              <div className="flex justify-between items-center">
                 <Label htmlFor="amount">Amount (USD)</Label>
                 <span className="text-sm text-muted-foreground">
-                  Available: ${balance.toFixed(2)}
+                  Balance: ${balance.toFixed(2)}
                 </span>
               </div>
-              <div className="relative">
-                <Input
-                  id="amount"
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  min="1"
-                  max={balance.toString()}
-                  step="0.01"
-                  className="bg-background/50 pr-16"
-                  required
-                  disabled={isLoading || balance <= 0}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="absolute right-1 top-1 h-7"
-                  onClick={handleMax}
-                  disabled={isLoading || balance <= 0}
-                >
-                  Max
-                </Button>
-              </div>
-              {balance <= 0 && (
-                <p className="text-sm text-destructive">
-                  You need to deposit funds before you can make a withdrawal.
-                </p>
-              )}
+              <Input
+                id="amount"
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount"
+                min="1"
+                step="0.01"
+                className="bg-background/50"
+                required
+                disabled={isLoading}
+              />
             </div>
-            
             <div className="grid gap-2">
-              <Label htmlFor="withdrawal-method">Withdrawal Method</Label>
-              <div className="flex gap-4">
-                <Button
-                  type="button"
-                  variant={withdrawalMethod === "crypto" ? "default" : "outline"}
-                  onClick={() => setWithdrawalMethod("crypto")}
-                  className="flex-1"
-                  disabled={isLoading}
-                >
-                  Crypto
-                </Button>
-                <Button
-                  type="button"
-                  variant={withdrawalMethod === "bank" ? "default" : "outline"}
-                  onClick={() => setWithdrawalMethod("bank")}
-                  className="flex-1"
-                  disabled={isLoading}
-                >
-                  Bank Transfer
-                </Button>
-              </div>
+              <Label htmlFor="account">Account Details</Label>
+              <Input
+                id="account"
+                type="text"
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
+                placeholder="Enter account details"
+                className="bg-background/50"
+                required
+                disabled={isLoading}
+              />
             </div>
-            
-            {withdrawalMethod === "crypto" && (
-              <div className="grid gap-2">
-                <Label htmlFor="wallet-address">Wallet Address</Label>
-                <Input
-                  id="wallet-address"
-                  type="text"
-                  value={walletAddress}
-                  onChange={(e) => setWalletAddress(e.target.value)}
-                  placeholder="Enter your wallet address"
-                  className="bg-background/50"
-                  required
-                  disabled={isLoading}
-                />
-                <div className="grid gap-2">
-                  <Label htmlFor="crypto-type">Select Cryptocurrency</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {["BTC", "ETH", "USDT", "SOL"].map((crypto) => (
-                      <Button
-                        key={crypto}
-                        type="button"
-                        variant={selectedCrypto === crypto ? "default" : "outline"}
-                        className="bg-background/50"
-                        onClick={() => setSelectedCrypto(crypto)}
-                        disabled={isLoading}
-                      >
-                        {crypto}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {withdrawalMethod === "bank" && (
-              <div className="grid gap-2">
-                <Label htmlFor="bank-name">Bank Name</Label>
-                <Input
-                  id="bank-name"
-                  type="text"
-                  placeholder="Enter bank name"
-                  className="bg-background/50"
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-                <Label htmlFor="account-number">Account Number</Label>
-                <Input
-                  id="account-number"
-                  type="text"
-                  placeholder="Enter account number"
-                  className="bg-background/50"
-                  value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-                <Label htmlFor="routing-number">Routing Number</Label>
-                <Input
-                  id="routing-number"
-                  type="text"
-                  placeholder="Enter routing number"
-                  className="bg-background/50"
-                  value={routingNumber}
-                  onChange={(e) => setRoutingNumber(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => {
-              resetForm();
-              onClose();
-            }} disabled={isLoading}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || balance <= 0}>
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? "Processing..." : "Withdraw Funds"}
             </Button>
           </DialogFooter>

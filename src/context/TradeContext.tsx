@@ -108,7 +108,6 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({
     type: TradeType
   ) => {
     stake = parseFloat(stake.toFixed(2));
-    let transactionStarted = false;
 
     if (stake > balance) {
       toast({
@@ -125,7 +124,6 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({
       const newBalance = parseFloat((balance - stake).toFixed(2));
       setBalance(newBalance);
       await updateProfile({ balance: newBalance });
-      transactionStarted = true;
       
       toast({
         title: "Trade Started",
@@ -146,8 +144,7 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({
           stake,
           profit: profitAmount,
           result: isWin ? "WIN" : "LOSS",
-          type,
-          status: "COMPLETED"
+          type
         })
         .select()
         .single();
@@ -185,14 +182,11 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       }
     } catch (error: any) {
+      const refundBalance = parseFloat((balance).toFixed(2));
+      setBalance(refundBalance);
+      await updateProfile({ balance: refundBalance });
+      
       console.error("Error executing trade:", error.message);
-      
-      if (transactionStarted) {
-        const refundBalance = parseFloat((balance).toFixed(2));
-        setBalance(refundBalance);
-        await updateProfile({ balance: refundBalance }).catch(console.error);
-      }
-      
       toast({
         title: "Trade Error",
         description: error.message || "An error occurred while executing your trade.",

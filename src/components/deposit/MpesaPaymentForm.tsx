@@ -2,7 +2,7 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Phone, Mail, AlertCircle } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
 
 interface MpesaPaymentFormProps {
   phoneNumber: string;
@@ -66,22 +66,16 @@ const MpesaPaymentForm: React.FC<MpesaPaymentFormProps> = ({
         className="bg-background/50"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        required
         disabled={isLoading}
       />
       <p className="text-xs text-muted-foreground">
-        Your email address for payment confirmation (required).
+        Your email address for payment confirmation.
       </p>
       
       <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-xs">
-        <div className="flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-medium">Important:</p>
-            <p>Keep your phone nearby. You'll be redirected to the Pesapal payment gateway to complete your M-Pesa payment.</p>
-            <p className="mt-1">This payment is processed securely through Pesapal's official gateway.</p>
-          </div>
-        </div>
+        <p className="font-medium">Important:</p>
+        <p>Keep your phone nearby. You'll be redirected to the Pesapal payment gateway to complete your payment.</p>
+        <p className="mt-1">This payment is processed securely through Pesapal.</p>
       </div>
     </div>
   );

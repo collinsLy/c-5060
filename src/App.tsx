@@ -16,8 +16,6 @@ import Demo from "./pages/Demo";
 import More from "./pages/More";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
-import IpnHandler from '@/pages/IpnHandler';
-import { PaymentTest } from "./components/PaymentTest";
 
 const queryClient = new QueryClient();
 
@@ -91,8 +89,6 @@ const AppRoutes = () => {
           <Settings />
         </ProtectedRoute>
       } />
-      <Route path="/payment-test" element={<PaymentTest />} />
-      <Route path="/ipn" element={<IpnHandler />} />
     </Routes>
   );
 };

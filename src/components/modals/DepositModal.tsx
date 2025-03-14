@@ -37,8 +37,6 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
   const [transactionStatus, setTransactionStatus] = useState<string>("");
   const [orderTrackingId, setOrderTrackingId] = useState<string>("");
   const [redirectUrl, setRedirectUrl] = useState<string>("");
-  const [firstName, setFirstName] = useState<string>("");
-  const [lastName, setLastName] = useState<string>("");
 
   // Handle redirect to Pesapal payment page
   useEffect(() => {
@@ -132,15 +130,6 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
       return false;
     }
 
-    if (!firstName || !lastName) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please enter your first and last name',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
     return true;
   };
 
@@ -155,13 +144,14 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     setTransactionStatus("Processing payment...");
     
     try {
-      // Prepare the details object
-      const details = paymentMethod === 'mpesa' 
-        ? { phoneNumber, email, firstName, lastName, countryCode: 'KE' } 
-        : { email, firstName, lastName, countryCode: 'KE' };
-      
       // Use unified payment processing function
-      const result = await processPayment(amount, paymentMethod, details);
+      const result = await processPayment(
+        amount, 
+        paymentMethod, 
+        phoneNumber, 
+        email, 
+        addTransaction
+      );
       
       if (result.error) {
         setTransactionStatus(`Error: ${result.error}`);
@@ -171,19 +161,7 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
         setRedirectUrl(result.redirectUrl);
         setTransactionStatus("Redirecting to Pesapal payment gateway...");
       } else {
-        // Direct success
-        addTransaction({
-          amount: parseFloat(amount),
-          type: "DEPOSIT",
-          status: "COMPLETED",
-          details: `${paymentMethod} payment completed - Ref: ${result.transactionId}`,
-        });
-        
-        toast({
-          title: "Payment Successful",
-          description: "Your deposit has been completed successfully.",
-        });
-        
+        // Direct success (unlikely with Pesapal integration, but kept for compatibility)
         setAmount("");
         setTransactionStatus("");
         onClose();
@@ -209,10 +187,6 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
             email={email}
             setEmail={setEmail}
             isLoading={isLoading}
-            firstName={firstName}
-            setFirstName={setFirstName}
-            lastName={lastName}
-            setLastName={setLastName}
           />
         );
       default:
@@ -303,31 +277,3 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
 };
 
 export default DepositModal;
-
-
-// Remove the redirect useEffect
-// Add iframe rendering logic
-const renderPaymentFrame = () => {
-  if (redirectUrl) {
-    return (
-      <div className="mt-4 h-[600px] w-full">
-        <iframe
-          src={redirectUrl}
-          className="h-full w-full rounded-lg border"
-          title="PesaPal Payment"
-          allow="payment; accelerometer; autoplay; encrypted-media; gyroscope"
-        />
-      </div>
-    );
-  }
-  return renderPaymentForm();
-};
-
-// Update the dialog content to use renderPaymentFrame
-<DialogContent className="max-w-2xl">
-  {/* ... existing header ... */}
-  {renderPaymentFrame()}
-</DialogContent>
-
-// In handleSubmit, remove the redirect URL state update
-// Just setRedirectUrl(result.redirectUrl) without the useEffect

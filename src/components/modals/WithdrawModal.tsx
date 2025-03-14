@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Dialog,
@@ -31,6 +32,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
   const [selectedCrypto, setSelectedCrypto] = useState<string>("");
 
   const validateForm = (): boolean => {
+    // Validate amount
     const withdrawalAmount = parseFloat(amount);
     if (!amount || isNaN(withdrawalAmount) || withdrawalAmount <= 0) {
       toast({
@@ -41,6 +43,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
       return false;
     }
     
+    // Check for sufficient funds
     if (withdrawalAmount > balance) {
       toast({
         title: "Insufficient Funds",
@@ -50,6 +53,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
       return false;
     }
 
+    // Validate wallet address for crypto
     if (withdrawalMethod === "crypto") {
       if (!walletAddress || walletAddress.trim() === "") {
         toast({
@@ -70,6 +74,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
       }
     }
     
+    // Validate bank details for bank transfer
     if (withdrawalMethod === "bank") {
       if (!bankName || !accountNumber || !routingNumber) {
         toast({
@@ -93,10 +98,13 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
     
     setIsLoading(true);
     
+    // Format amount to 2 decimal places
     const withdrawalAmount = formatAmount(amount);
     
+    // Simulate processing
     await new Promise((resolve) => setTimeout(resolve, 1500));
     
+    // Add transaction to history with appropriate details
     let details = "";
     if (withdrawalMethod === "crypto") {
       details = `${selectedCrypto} to: ${walletAddress.substring(0, 8)}...`;
@@ -111,6 +119,7 @@ const WithdrawModal: React.FC<WithdrawModalProps> = ({ isOpen, onClose }) => {
       details,
     });
     
+    // Reset form and close modal
     setIsLoading(false);
     resetForm();
     onClose();

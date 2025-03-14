@@ -144,21 +144,21 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
     setTransactionStatus("Processing payment...");
     
     try {
-      // Use unified payment processing function
+      // Call the processPayment function with the correct number of arguments
       const result = await processPayment(
-        amount, 
+        parseFloat(amount), 
         paymentMethod, 
-        phoneNumber, 
-        email, 
-        addTransaction
+        { phoneNumber, email }
       );
       
-      if (result.error) {
-        setTransactionStatus(`Error: ${result.error}`);
+      const typedResult = result as any; // Type assertion for the result
+      
+      if (typedResult.error) {
+        setTransactionStatus(`Error: ${typedResult.error}`);
         setIsLoading(false);
-      } else if (result.redirectUrl && result.orderTrackingId) {
-        setOrderTrackingId(result.orderTrackingId);
-        setRedirectUrl(result.redirectUrl);
+      } else if (typedResult.redirectUrl && typedResult.orderTrackingId) {
+        setOrderTrackingId(typedResult.orderTrackingId);
+        setRedirectUrl(typedResult.redirectUrl);
         setTransactionStatus("Redirecting to Pesapal payment gateway...");
       } else {
         // Direct success (unlikely with Pesapal integration, but kept for compatibility)

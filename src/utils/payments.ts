@@ -1,3 +1,4 @@
+
 // Payment integration utilities
 
 // Environment variables in Vite should be accessed using import.meta.env instead of process.env
@@ -27,4 +28,30 @@ export const processPayment = async (amount: number, method: string, details: an
       });
     }, 2000);
   });
+};
+
+// Add the missing checkPaymentStatus function
+export const checkPaymentStatus = async (orderTrackingId: string): Promise<string> => {
+  console.log(`Checking payment status for order: ${orderTrackingId}`);
+  
+  // This is a placeholder for actual status checking
+  // In a real implementation, this would call the payment processor's API
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Randomly return a status for demonstration purposes
+      const statuses = ["PENDING", "COMPLETED", "FAILED"];
+      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+      console.log(`Payment status for ${orderTrackingId}: ${randomStatus}`);
+      resolve(randomStatus);
+    }, 1000);
+  });
+};
+
+// Add the missing formatAmount function
+export const formatAmount = (amount: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  }).format(amount);
 };

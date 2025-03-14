@@ -6,99 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/context/UserContext";
 import { toast } from "@/hooks/use-toast";
-import { formatAmount } from "@/utils/payments";
 import PaymentMethodSelector from "@/components/deposit/PaymentMethodSelector";
-import CardPaymentForm from "@/components/deposit/CardPaymentForm";
-import CryptoPaymentForm from "@/components/deposit/CryptoPaymentForm";
 import MpesaPaymentForm from "@/components/deposit/MpesaPaymentForm";
-import { 
-  processPayment,
-  checkPaymentStatus 
-} from "@/utils/payments";
+import PaymentIframeModal from "@/components/modals/PaymentIframeModal";
 
 const Deposit = () => {
   const { addTransaction, balance } = useUser();
   const [amount, setAmount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<string>("card");
+  const [paymentMethod, setPaymentMethod] = useState<string>("mpesa");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [email, setEmail] = useState<string>("");
-  const [transactionStatus, setTransactionStatus] = useState<string>("");
-  const [orderTrackingId, setOrderTrackingId] = useState<string>("");
-  const [redirectUrl, setRedirectUrl] = useState<string>("");
-
-  // Handle redirect to Pesapal payment page
-  React.useEffect(() => {
-    if (redirectUrl) {
-      const timer = setTimeout(() => {
-        window.location.href = redirectUrl;
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [redirectUrl]);
-
-  // Poll for payment status updates if we have an orderTrackingId
-  React.useEffect(() => {
-    let statusCheckInterval: number | undefined;
-    
-    if (orderTrackingId) {
-      statusCheckInterval = window.setInterval(async () => {
-        try {
-          const status = await checkPaymentStatus(orderTrackingId);
-          
-          if (status === "COMPLETED") {
-            toast({
-              title: "Payment Successful",
-              description: "Your deposit has been completed successfully.",
-            });
-            
-            // Update transaction status to COMPLETED
-            const paymentMethodDisplay = 
-              paymentMethod === "mpesa" ? `M-Pesa` :
-              paymentMethod === "card" ? "Credit Card" : 
-              paymentMethod === "crypto" ? "Crypto Wallet" : paymentMethod;
-              
-            addTransaction({
-              amount: parseFloat(amount),
-              type: "DEPOSIT",
-              status: "COMPLETED",
-              details: `${paymentMethodDisplay} payment completed - Ref: ${orderTrackingId}`,
-            });
-            
-            setIsLoading(false);
-            setTransactionStatus("");
-            setOrderTrackingId("");
-            setAmount("");
-            setPhoneNumber("");
-            setEmail("");
-            
-            clearInterval(statusCheckInterval);
-          } else if (status === "FAILED") {
-            toast({
-              title: "Payment Failed",
-              description: "Your payment could not be processed. Please try again.",
-              variant: "destructive",
-            });
-            
-            setIsLoading(false);
-            setTransactionStatus("Payment failed. Please try again.");
-            setOrderTrackingId("");
-            
-            clearInterval(statusCheckInterval);
-          }
-        } catch (error) {
-          console.error("Error checking payment status:", error);
-        }
-      }, 10000); // Check every 10 seconds
-    }
-    
-    return () => {
-      if (statusCheckInterval) {
-        clearInterval(statusCheckInterval);
-      }
-    };
-  }, [orderTrackingId, amount, addTransaction, paymentMethod]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
+  const [paymentUrl, setPaymentUrl] = useState<string>("");
 
   const validateForm = (): boolean => {
     // Validate amount
@@ -132,57 +52,46 @@ const Deposit = () => {
     }
 
     setIsLoading(true);
-    setTransactionStatus("Processing payment...");
     
     try {
-      // Call the processPayment function with the correct parameters
-      const result = await processPayment(
-        parseFloat(amount), 
-        paymentMethod, 
-        { phoneNumber, email }
-      );
+      // Build the payment URL with query parameters
+      const basePaymentUrl = "https://ffd4603c-a6b1-4aa9-a884-836873a74217-00-12y2chpnbj16v.picard.replit.dev/";
+      const params = new URLSearchParams({
+        amount: amount,
+        phone: phoneNumber,
+        email: email || '',
+        method: paymentMethod,
+      });
       
-      const typedResult = result as any; // Type assertion for the result
+      const fullPaymentUrl = `${basePaymentUrl}?${params.toString()}`;
+      setPaymentUrl(fullPaymentUrl);
       
-      if (typedResult.error) {
-        setTransactionStatus(`Error: ${typedResult.error}`);
-        setIsLoading(false);
-      } else if (typedResult.redirectUrl && typedResult.orderTrackingId) {
-        setOrderTrackingId(typedResult.orderTrackingId);
-        setRedirectUrl(typedResult.redirectUrl);
-        setTransactionStatus("Redirecting to Pesapal payment gateway...");
-      } else {
-        // Direct success (unlikely with Pesapal integration, but kept for compatibility)
-        setAmount("");
-        setTransactionStatus("");
-        setIsLoading(false);
-      }
+      // Open the payment modal
+      setIsPaymentModalOpen(true);
+      
+      // Record the pending transaction
+      addTransaction({
+        amount: parseFloat(amount),
+        type: "DEPOSIT",
+        status: "PENDING",
+        details: `${paymentMethod === "mpesa" ? "M-Pesa" : paymentMethod} payment initiated`,
+      });
+      
     } catch (error) {
       console.error("Payment processing error:", error);
-      setTransactionStatus("");
+      toast({
+        title: "Payment Error",
+        description: "There was an error processing your request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const renderPaymentForm = () => {
-    switch (paymentMethod) {
-      case "card":
-        return <CardPaymentForm />;
-      case "crypto":
-        return <CryptoPaymentForm />;
-      case "mpesa":
-        return (
-          <MpesaPaymentForm
-            phoneNumber={phoneNumber}
-            setPhoneNumber={setPhoneNumber}
-            email={email}
-            setEmail={setEmail}
-            isLoading={isLoading}
-          />
-        );
-      default:
-        return null;
-    }
+  const handlePaymentModalClose = () => {
+    setIsPaymentModalOpen(false);
+    // You can add logic here to check payment status if needed
   };
 
   return (
@@ -219,12 +128,14 @@ const Deposit = () => {
               disabled={isLoading}
             />
             
-            {renderPaymentForm()}
-            
-            {transactionStatus && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-800 text-sm">
-                <p>{transactionStatus}</p>
-              </div>
+            {paymentMethod === "mpesa" && (
+              <MpesaPaymentForm
+                phoneNumber={phoneNumber}
+                setPhoneNumber={setPhoneNumber}
+                email={email}
+                setEmail={setEmail}
+                isLoading={isLoading}
+              />
             )}
             
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -233,6 +144,12 @@ const Deposit = () => {
           </div>
         </form>
       </div>
+
+      <PaymentIframeModal
+        isOpen={isPaymentModalOpen}
+        onClose={handlePaymentModalClose}
+        paymentUrl={paymentUrl}
+      />
     </AuthLayout>
   );
 };

@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,7 +18,15 @@ import More from "./pages/More";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 
-const queryClient = new QueryClient();
+// Create a new QueryClient with default settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, isLoading } = useUser();
